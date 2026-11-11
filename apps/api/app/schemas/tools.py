@@ -76,6 +76,7 @@ class ConvertRequest(BaseModel):
     ]
     mode: Literal["editable", "high_fidelity", "hybrid"] = "editable"
     pptx_mode: Literal["hybrid", "editable", "visual"] = "hybrid"
+    font_name: str = "Times New Roman"
     output_name: str | None = Field(default=None, max_length=255)
 
 

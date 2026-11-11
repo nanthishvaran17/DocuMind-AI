@@ -382,6 +382,7 @@ def pdf_to_docx(
     *,
     mode: str = "editable",
     base_name: str = "document",
+    font_name: str = "Times New Roman",
 ) -> ConversionArtifact:
     """
     High-fidelity PDF -> Word conversion supporting Modes A (editable),
@@ -574,14 +575,14 @@ def pdf_to_docx(
                                     p.add_run(" ")
 
                             run = p.add_run(w["text"])
-                            raw_fn = str(w.get("fontname") or "Calibri")
+                            raw_fn = str(w.get("fontname") or font_name or "Times New Roman")
                             fam, warned = _normalize_font_name(raw_fn)
                             if warned and raw_fn not in seen_font_warns:
                                 seen_font_warns.add(raw_fn)
                                 font_warnings.append(
                                     {"source_font": raw_fn, "substituted_font": fam}
                                 )
-                            run.font.name = fam
+                            run.font.name = font_name or fam
                             sz = float(w.get("size") or median_body_pt)
                             run.font.size = Pt(max(6.0, min(48.0, sz)))
                             low_fn = raw_fn.lower()
@@ -632,7 +633,7 @@ def pdf_to_docx(
                                 p.paragraph_format.space_before = Pt(0)
                                 p.paragraph_format.space_after = Pt(0)
                                 run = p.add_run(txt)
-                                run.font.name = "Calibri"
+                                run.font.name = font_name or "Times New Roman"
                                 run.font.size = Pt(9.5 if mode == "high_fidelity" else 10.0)
                                 if r_idx == 0:
                                     run.bold = True
@@ -640,6 +641,16 @@ def pdf_to_docx(
                                     _set_cell_shading(cell, "1E293B")
                                 elif r_idx % 2 == 1:
                                     _set_cell_shading(cell, "F8FAFC")
+
+                        # Word table pagination standards: repeat header and prevent split rows
+                        try:
+                            tr_hdr = word_tbl.rows[0]._tr.get_or_add_trPr()
+                            tr_hdr.append(parse_xml(f'<w:tblHeader {nsdecls("w")}/>'))
+                            for w_row in word_tbl.rows:
+                                tr_p = w_row._tr.get_or_add_trPr()
+                                tr_p.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
+                        except Exception:
+                            pass
 
                         # Inspect cell background rects from PDF to preserve custom header colors
                         for rect in page.rects or []:
@@ -835,57 +846,134 @@ def extract_tables_from_pdf(pdf_bytes: bytes) -> list[dict[str, Any]]:
     return extracted_tables
 
 
+def _determine_column_alignments(rows: list[list[str]]) -> list[str]:
+    """
+    Analyze column values to determine optimal alignment:
+    - 'right': Numeric, Currency, Percentage
+    - 'center': Dates, Short Codes (<=4 chars)
+    - 'left': Text / Descriptions
+    """
+    if not rows or len(rows) < 2:
+        return ["left"] * (len(rows[0]) if rows else 1)
+
+    num_cols = max((len(r) for r in rows), default=1)
+    alignments: list[str] = []
+    for c_idx in range(num_cols):
+        numeric_count = 0
+        date_count = 0
+        total_data = 0
+        for r in rows[1:]:
+            val = str(r[c_idx]).strip() if c_idx < len(r) else ""
+            if not val:
+                continue
+            total_data += 1
+            if (
+                re.fullmatch(r"(-?\d+(?:\.\d+)?)\s*%", val.replace(",", ""))
+                or re.fullmatch(r"([₹$€£])\s*(-?[\d,]+(?:\.\d{1,4})?)", val)
+                or (
+                    re.fullmatch(r"-?[\d,]+(?:\.\d+)?", val)
+                    and not (val.startswith("0") and len(val) > 1 and "." not in val)
+                )
+            ):
+                numeric_count += 1
+            elif re.fullmatch(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}", val):
+                date_count += 1
+
+        if total_data > 0 and (numeric_count / total_data) >= 0.5:
+            alignments.append("right")
+        elif total_data > 0 and (date_count / total_data) >= 0.5:
+            alignments.append("center")
+        else:
+            alignments.append("left")
+    return alignments
+
+
+def _is_summary_row(row: list[str]) -> bool:
+    """Identify Total / Subtotal / Summary rows to apply accounting double-underlines."""
+    summary_prefixes = (
+        "total", "subtotal", "grand total", "sum", "net", "average", "balance"
+    )
+    for cell in row[:2]:
+        s = str(cell or "").strip().lower()
+        if any(s.startswith(k) for k in summary_prefixes):
+            return True
+    return False
+
+
 def _write_xlsx_table_sheet(
     wb: openpyxl.Workbook,
     t: dict[str, Any],
     grid_border: Border,
+    total_border: Border,
     header_fill: PatternFill,
     zebra_fill: PatternFill,
     header_font: Font,
     body_font: Font,
+    summary_font: Font,
 ) -> None:
-    """Write a single detected table into a new worksheet."""
+    """Write a single detected table into a new worksheet with lead-analyst styling."""
     ws = wb.create_sheet(title=f"P{t['page']}_Table{t['table_index']}"[:31])
     ws.views.sheetView[0].showGridLines = True
     ws.freeze_panes = "A2"
     rows: list[list[str]] = t["rows"]
-    col_max_lens = [10] * max(1, t["cols_count"])
+    if not rows:
+        return
+
+    cols_count = max(1, t.get("cols_count") or len(rows[0]))
+    col_alignments = _determine_column_alignments(rows)
+    col_max_lens = [12] * cols_count
 
     for r_idx, row in enumerate(rows, start=1):
+        is_summary = _is_summary_row(row) if r_idx > 1 else False
+        ws.row_dimensions[r_idx].height = 26.0 if r_idx == 1 else 20.0
+
         for c_idx, raw_val in enumerate(row, start=1):
             cell = ws.cell(row=r_idx, column=c_idx)
+            val_str = str(raw_val or "").strip()
+            align_type = col_alignments[c_idx - 1] if c_idx - 1 < len(col_alignments) else "left"
+
             if r_idx == 1:
-                cell.value = raw_val
+                cell.value = val_str
                 cell.font = header_font
                 cell.fill = header_fill
+                cell.border = grid_border
                 cell.alignment = Alignment(
-                    horizontal="center", vertical="center", wrap_text=True
+                    horizontal=align_type, vertical="center", wrap_text=True
                 )
             else:
-                parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
+                parsed_val, num_fmt = _parse_excel_cell_value(val_str)
                 cell.value = parsed_val
-                cell.font = body_font
-                if r_idx % 2 == 1:
+                cell.font = summary_font if is_summary else body_font
+                cell.border = total_border if is_summary else grid_border
+                if not is_summary and r_idx % 2 == 1:
                     cell.fill = zebra_fill
                 if num_fmt:
                     cell.number_format = num_fmt
                     cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif align_type == "center":
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
                 else:
                     cell.alignment = Alignment(
                         horizontal="left", vertical="center", wrap_text=True
                     )
-            cell.border = grid_border
+
             col_max_lens[c_idx - 1] = max(
-                col_max_lens[c_idx - 1], min(48, len(raw_val) + 4)
+                col_max_lens[c_idx - 1], min(55, len(val_str) + 4)
             )
+
+    # Lead Excel Auto-Filter
+    if len(rows) >= 2 and cols_count >= 1:
+        max_col_letter = get_column_letter(cols_count)
+        ws.auto_filter.ref = f"A1:{max_col_letter}{len(rows)}"
 
     for c_idx, max_len in enumerate(col_max_lens, start=1):
         col_pt = t["col_widths_pt"][c_idx - 1] if c_idx - 1 < len(t["col_widths_pt"]) else 0
-        ws.column_dimensions[get_column_letter(c_idx)].width = max(
-            float(max_len), min(46.0, round(col_pt / 6.2, 1)) if col_pt else float(max_len)
-        )
+        col_w = min(55.0, round(col_pt / 6.0, 1)) if col_pt else float(max_len)
+        computed_w = max(float(max_len), col_w)
+        ws.column_dimensions[get_column_letter(c_idx)].width = max(13.0, computed_w)
+
     ws.page_setup.orientation = (
-        ws.ORIENTATION_LANDSCAPE if t["cols_count"] >= 6 else ws.ORIENTATION_PORTRAIT
+        ws.ORIENTATION_LANDSCAPE if cols_count >= 6 else ws.ORIENTATION_PORTRAIT
     )
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.page_setup.fitToWidth = 1
@@ -897,30 +985,31 @@ def _write_combined_sheet(
     tables: list[dict[str, Any]],
     pdf_bytes: bytes,
     grid_border: Border,
+    total_border: Border,
     header_fill: PatternFill,
     zebra_fill: PatternFill,
     header_font: Font,
     body_font: Font,
+    summary_font: Font,
+    section_font: Font,
 ) -> int:
     """
     Create a unified 'Combined_Data' worksheet containing all rows and columns
-    from the PDF in reading order. Consecutive multi-page tables are merged seamlessly.
-    Returns the total data rows written.
+    from the PDF in reading order with lead-analyst formatting and auto-filter.
     """
     ws = wb.create_sheet(title="Combined_Data", index=0)
     ws.views.sheetView[0].showGridLines = True
     ws.freeze_panes = "A2"
 
-    section_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
-    section_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    section_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
 
     cur_row = 1
     total_rows_written = 0
 
     if tables:
-        # Check if consecutive tables share the same column structure (e.g. multi-page tables)
         col_max_lens: dict[int, int] = {}
         last_header: list[str] | None = None
+        filter_start_row = 1
 
         for t_idx, t in enumerate(tables):
             rows: list[list[str]] = t.get("rows") or []
@@ -936,13 +1025,14 @@ def _write_combined_sheet(
                 )
             )
 
-            # If not continuation of the same table, write section or header
+            col_alignments = _determine_column_alignments(rows)
+
             if not is_same_table:
                 if cur_row > 1:
-                    cur_row += 1  # Add blank separator row
+                    cur_row += 1
 
-                # If multiple distinct tables, add a clear section separator
-                if len(tables) > 1:
+                if len(tables) > 1 and t_idx > 0:
+                    ws.row_dimensions[cur_row].height = 24.0
                     sec_cell = ws.cell(
                         row=cur_row,
                         column=1,
@@ -953,54 +1043,84 @@ def _write_combined_sheet(
                     sec_cell.alignment = Alignment(horizontal="left", vertical="center")
                     cur_row += 1
 
-                # Write header row
+                # Header row
+                ws.row_dimensions[cur_row].height = 26.0
+                if t_idx == 0:
+                    filter_start_row = cur_row
+
                 for c_idx, raw_val in enumerate(rows[0], start=1):
-                    cell = ws.cell(row=cur_row, column=c_idx, value=raw_val)
+                    val_str = str(raw_val or "").strip()
+                    align_type = (
+                        col_alignments[c_idx - 1]
+                        if c_idx - 1 < len(col_alignments)
+                        else "left"
+                    )
+                    cell = ws.cell(row=cur_row, column=c_idx, value=val_str)
                     cell.font = header_font
                     cell.fill = header_fill
                     cell.border = grid_border
                     cell.alignment = Alignment(
-                        horizontal="center", vertical="center", wrap_text=True
+                        horizontal=align_type, vertical="center", wrap_text=True
                     )
                     col_max_lens[c_idx] = max(
-                        col_max_lens.get(c_idx, 10), min(48, len(raw_val) + 4)
+                        col_max_lens.get(c_idx, 12), min(55, len(val_str) + 4)
                     )
                 cur_row += 1
                 last_header = first_row
                 data_rows = rows[1:]
             else:
-                # If continuation repeats the exact header row, skip it
                 data_rows = rows[1:] if first_row == last_header else rows
 
             # Write data rows
             for row in data_rows:
+                is_summary = _is_summary_row(row)
+                ws.row_dimensions[cur_row].height = 20.0
+
                 for c_idx, raw_val in enumerate(row, start=1):
                     cell = ws.cell(row=cur_row, column=c_idx)
-                    parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
+                    val_str = str(raw_val or "").strip()
+                    align_type = (
+                        col_alignments[c_idx - 1]
+                        if c_idx - 1 < len(col_alignments)
+                        else "left"
+                    )
+
+                    parsed_val, num_fmt = _parse_excel_cell_value(val_str)
                     cell.value = parsed_val
-                    cell.font = body_font
-                    cell.border = grid_border
-                    if (cur_row) % 2 == 1:
+                    cell.font = summary_font if is_summary else body_font
+                    cell.border = total_border if is_summary else grid_border
+
+                    if not is_summary and cur_row % 2 == 1:
                         cell.fill = zebra_fill
+
                     if num_fmt:
                         cell.number_format = num_fmt
                         cell.alignment = Alignment(horizontal="right", vertical="center")
+                    elif align_type == "center":
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
                     else:
                         cell.alignment = Alignment(
                             horizontal="left", vertical="center", wrap_text=True
                         )
+
                     col_max_lens[c_idx] = max(
-                        col_max_lens.get(c_idx, 10), min(48, len(str(raw_val)) + 4)
+                        col_max_lens.get(c_idx, 12), min(55, len(val_str) + 4)
                     )
                 cur_row += 1
                 total_rows_written += 1
 
+        # Enable Auto-Filter on primary table
+        if len(col_max_lens) >= 1 and cur_row > filter_start_row:
+            max_col_letter = get_column_letter(max(col_max_lens.keys()))
+            ws.auto_filter.ref = f"A{filter_start_row}:{max_col_letter}{cur_row - 1}"
+
         for c_idx, max_len in col_max_lens.items():
             ws.column_dimensions[get_column_letter(c_idx)].width = max(
-                12.0, min(50.0, float(max_len))
+                13.0, min(55.0, float(max_len))
             )
     else:
-        # If no explicit tables found, format text by line into clean readable spreadsheet rows
+        # Fallback text format
+        ws.row_dimensions[1].height = 26.0
         ws.cell(row=1, column=1, value="Document Content").font = header_font
         ws.cell(row=1, column=1).fill = header_fill
         ws.column_dimensions["A"].width = 90
@@ -1011,6 +1131,7 @@ def _write_combined_sheet(
                 for line in text.splitlines():
                     val = line.strip()
                     if val:
+                        ws.row_dimensions[cur_row].height = 20.0
                         cell = ws.cell(row=cur_row, column=1, value=val)
                         cell.font = body_font
                         cell.border = grid_border
@@ -1022,40 +1143,72 @@ def _write_combined_sheet(
     return total_rows_written
 
 
-def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionArtifact:
+def pdf_to_xlsx(
+    pdf_bytes: bytes,
+    *,
+    base_name: str = "document",
+    font_name: str = "Times New Roman",
+) -> ConversionArtifact:
     """
-    Convert a PDF to Excel with 100% complete data:
-    - Sheet 1 is always 'Combined_Data' containing ALL rows and columns unified in reading order.
-    - If multiple tables exist, individual sheets are also created for isolated viewing.
-    - Zero data loss: no partial/fragmented tables, no omitted rows.
+    Convert a PDF to Excel with lead financial analyst quality:
+    - Font: Times New Roman (executive corporate typography)
+    - Auto-Filter enabled on table headers
+    - Smart column-aware alignment: Numbers/Currencies RIGHT, Dates CENTER, Text LEFT
+    - Accounting double-underlines on Total / Summary rows
+    - Proper 26pt header height and auto-fitted columns with padding
     """
     tables = extract_tables_from_pdf(pdf_bytes)
     wb = openpyxl.Workbook()
     warnings: list[str] = []
 
-    thin = Side(border_style="thin", color="CBD5E1")
-    grid_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    thin_side = Side(border_style="thin", color="CBD5E1")
+    grid_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+    total_border = Border(
+        left=thin_side,
+        right=thin_side,
+        top=Side(border_style="thin", color="94A3B8"),
+        bottom=Side(border_style="double", color="0F172A"),
+    )
     header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
-    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    body_font = Font(name="Calibri", size=10, color="0F172A")
 
-    # Remove the default empty sheet before adding content sheets
+    header_font = Font(name=font_name, size=11, bold=True, color="FFFFFF")
+    body_font = Font(name=font_name, size=10, color="0F172A")
+    summary_font = Font(name=font_name, size=10, bold=True, color="0F172A")
+    section_font = Font(name=font_name, size=11, bold=True, color="FFFFFF")
+
     wb.remove(wb.active)
 
     # 1. Primary unified sheet with ALL rows and columns combined
     total_combined_rows = _write_combined_sheet(
-        wb, tables, pdf_bytes, grid_border, header_fill, zebra_fill, header_font, body_font
+        wb,
+        tables,
+        pdf_bytes,
+        grid_border,
+        total_border,
+        header_fill,
+        zebra_fill,
+        header_font,
+        body_font,
+        summary_font,
+        section_font,
     )
 
-    # 2. If multiple tables exist, also add individual sheets for convenience
+    # 2. If multiple tables exist, also add individual sheets
     if len(tables) > 1:
         for t in tables:
             _write_xlsx_table_sheet(
-                wb, t, grid_border, header_fill, zebra_fill, header_font, body_font
+                wb,
+                t,
+                grid_border,
+                total_border,
+                header_fill,
+                zebra_fill,
+                header_font,
+                body_font,
+                summary_font,
             )
 
-    # Set the first combined sheet as the active one so Excel opens to it directly
     wb.active = 0
 
     if not tables and total_combined_rows == 0:
@@ -1075,6 +1228,7 @@ def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionA
             "tables_count": len(tables),
             "combined_rows": total_combined_rows,
             "sheets_count": len(wb.sheetnames),
+            "font": font_name,
         },
     )
 
@@ -1473,6 +1627,7 @@ def convert_document(
     filename: str,
     target_format: str,
     mode: str = "editable",
+    font_name: str = "Times New Roman",
 ) -> ConversionArtifact:
     """Unified bidirectional document conversion router."""
     src_ext = Path(filename).suffix.lower().lstrip(".")
@@ -1482,9 +1637,9 @@ def convert_document(
 
     if src_ext == "pdf":
         if tgt == "docx":
-            return pdf_to_docx(source_bytes, mode=mode, base_name=filename)
+            return pdf_to_docx(source_bytes, mode=mode, base_name=filename, font_name=font_name)
         if tgt == "xlsx":
-            return pdf_to_xlsx(source_bytes, base_name=filename)
+            return pdf_to_xlsx(source_bytes, base_name=filename, font_name=font_name)
         if tgt == "pptx":
             return pdf_to_pptx(source_bytes, base_name=filename)
         if tgt in ("png", "jpg"):

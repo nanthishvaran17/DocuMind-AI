@@ -1296,12 +1296,14 @@ def convert_document_bytes(
         return out, ".pptx", MIME_BY_FORMAT["pptx"], meta
 
     doc_mode = str(opts.get("mode") or opts.get("conversion_mode") or "editable")
+    font_name = str(opts.get("font_name") or opts.get("font_family") or "Times New Roman")
     artifact = conversion_engine.convert_document(
         raw_bytes,
         source_mime=MIME_BY_FORMAT.get(src, "application/octet-stream"),
         filename=f"document.{src}",
         target_format=tgt,
         mode=doc_mode,
+        font_name=font_name,
     )
     conv_meta: dict[str, Any] = dict(artifact.meta)
     conv_meta["source_format"] = src

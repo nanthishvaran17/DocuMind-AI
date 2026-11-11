@@ -13,6 +13,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Download,
   ExternalLink,
@@ -115,6 +116,8 @@ export default function DashboardPage() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showAiStudio, setShowAiStudio] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [filterKind, setFilterKind] = useState<"all" | "pdf" | "office" | "images" | "starred">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -127,13 +130,20 @@ export default function DashboardPage() {
     ensureAuthSession().catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const docsQuery = useQuery({
-    queryKey: ["documents", selectedFolder, searchQuery],
+    queryKey: ["documents", selectedFolder, debouncedQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("limit", "50");
       if (selectedFolder) params.set("folder_id", selectedFolder);
-      if (searchQuery.trim()) params.set("q", searchQuery.trim());
+      if (debouncedQuery) params.set("q", debouncedQuery);
       const res = await apiRequest<DocumentItem[]>(`/documents?${params.toString()}`, {
         ensureGuest: true,
       });
@@ -338,11 +348,24 @@ export default function DashboardPage() {
   };
 
   const handleToggleFavorite = async (doc: DocumentItem) => {
-    await apiRequest(`/documents/${doc.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ is_favorite: !doc.is_favorite }),
-    });
-    await queryClient.invalidateQueries({ queryKey: ["documents"] });
+    const qk = ["documents", selectedFolder, debouncedQuery];
+    const prev = queryClient.getQueryData<DocumentItem[]>(qk);
+    if (prev) {
+      queryClient.setQueryData<DocumentItem[]>(
+        qk,
+        prev.map((d) => (d.id === doc.id ? { ...d, is_favorite: !d.is_favorite } : d))
+      );
+    }
+    try {
+      await apiRequest(`/documents/${doc.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_favorite: !doc.is_favorite }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
+    } catch {
+      if (prev) queryClient.setQueryData(qk, prev);
+      pushToast({ title: "Could not update favorite", variant: "error" });
+    }
   };
 
   const handleRenameDoc = async (docId: string) => {
@@ -351,16 +374,25 @@ export default function DashboardPage() {
       setEditingDocId(null);
       return;
     }
+    const qk = ["documents", selectedFolder, debouncedQuery];
+    const prev = queryClient.getQueryData<DocumentItem[]>(qk);
+    if (prev) {
+      queryClient.setQueryData<DocumentItem[]>(
+        qk,
+        prev.map((d) => (d.id === docId ? { ...d, name: trimmed } : d))
+      );
+    }
+    setEditingDocId(null);
     try {
       await apiRequest(`/documents/${docId}`, {
         method: "PATCH",
         body: JSON.stringify({ name: trimmed }),
       });
-      setEditingDocId(null);
       await queryClient.invalidateQueries({ queryKey: ["documents"] });
       await queryClient.invalidateQueries({ queryKey: ["shell-docs-summary"] });
       pushToast({ title: "Document renamed", variant: "success" });
     } catch (err) {
+      if (prev) queryClient.setQueryData(qk, prev);
       pushToast({
         title: "Rename failed",
         description: err instanceof Error ? err.message : "Could not rename document.",
