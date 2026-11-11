@@ -254,6 +254,8 @@ async def watermark_pdf_tool(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files can be watermarked here.")
     ver = await _get_latest_version(db, doc)
     job = await _enqueue_pdf_job(
         db=db,
@@ -279,6 +281,8 @@ async def page_numbers_pdf_tool(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files support page numbering.")
     ver = await _get_latest_version(db, doc)
     job = await _enqueue_pdf_job(
         db=db,
@@ -303,6 +307,8 @@ async def protect_pdf_tool(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files can be password-protected.")
     ver = await _get_latest_version(db, doc)
     job = await _enqueue_pdf_job(
         db=db,
@@ -323,6 +329,8 @@ async def unlock_pdf_tool(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files can be unlocked.")
     ver = await _get_latest_version(db, doc)
     job = await _enqueue_pdf_job(
         db=db,

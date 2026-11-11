@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -363,7 +364,32 @@ export default function WorkspacePage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3.5 space-y-4 text-xs">
-                  {rightTab === "tools" && (
+                  {rightTab === "tools" && doc.mime_type !== "application/pdf" && (
+                    <div className="dm-elevated p-4 space-y-3">
+                      <p className="font-semibold text-[var(--dm-text)]">Non-PDF Document ({doc.mime_type})</p>
+                      <p className="text-[var(--dm-muted)] leading-relaxed">
+                        PDF toolkit actions (Compress, Page Numbers, Rotate, Delete, Protect/Unlock) only operate on PDF files.
+                      </p>
+                      <div className="flex flex-col gap-2 pt-1">
+                        {doc.mime_type.startsWith("image/") && (
+                          <Link
+                            href="/app/tools/photo-resizer"
+                            className="dm-primary-btn px-3 py-1.5 text-center font-medium"
+                          >
+                            Open Photo &amp; Sign Resizer
+                          </Link>
+                        )}
+                        <Link
+                          href="/app/tools/scan"
+                          className="px-3 py-1.5 rounded border border-[var(--dm-border)] text-center hover:border-indigo-500"
+                        >
+                          Convert Images to PDF
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  {rightTab === "tools" && doc.mime_type === "application/pdf" && (
                     <>
                       {/* Compress to KB */}
                       <div className="dm-elevated p-3 space-y-2">
