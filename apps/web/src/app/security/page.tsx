@@ -1,5 +1,15 @@
+import Link from "next/link";
 import { ShieldCheck, Lock, FileWarning, Server } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Navbar } from "@/components/Navbar";
+import { buildPageMetadata } from "@/lib/siteConfig";
+
+export const metadata = buildPageMetadata({
+  title: "Security & Zero-Trust Architecture",
+  description:
+    "Explore DocuMind AI upload sanitization, ClamAV malware scanning, PDF script stripping, isolated workers, and immutable v1 version history.",
+  path: "/security",
+});
 
 export default function SecurityPage() {
   const pillars = [
@@ -34,6 +44,7 @@ export default function SecurityPage() {
       <Navbar />
       <main className="flex-1 dm-grid-bg">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 space-y-8">
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Security" }]} />
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/25 bg-indigo-500/10 text-indigo-400 text-xs font-medium">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -59,6 +70,18 @@ export default function SecurityPage() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="flex flex-wrap gap-4 text-xs text-[var(--dm-muted)] pt-2">
+            <Link href="/privacy" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+              Privacy Policy (DPDP &amp; GDPR)
+            </Link>
+            <Link href="/terms" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+              Terms of Service
+            </Link>
+            <Link href="/app" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+              Try Workspace in Guest Mode
+            </Link>
           </div>
         </div>
       </main>
