@@ -3,15 +3,14 @@
 <img src="docs/assets/hero-banner.svg" alt="DocuMind AI — Privacy-First Document Workspace & PDF Toolkit" width="100%" />
 
 <br />
-<br />
 
-[![CI Status](https://img.shields.io/github/actions/workflow/status/nanthishvaran17/DocuMind-AI/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/nanthishvaran17/DocuMind-AI/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-6366F1?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](apps/web/package.json)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](apps/api/pyproject.toml)
-[![Python](https://img.shields.io/badge/Python_3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](apps/api/requirements.txt)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16_%2B_pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](docker-compose.yml)
-[![Bilingual](https://img.shields.io/badge/UI-English_%2B_%E0%AE%A4%E0%AE%AE%E0%AE%BF%E0%AE%B4%E0%AF%8D-8B5CF6?style=for-the-badge)](apps/web/messages)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-6366F1?style=flat-square&logo=apache&logoColor=white)](LICENSE)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-0F172A?style=flat-square&logo=nextdotjs&logoColor=white)](apps/web/package.json)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white)](apps/api/pyproject.toml)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](apps/api/requirements.txt)
+[![PostgreSQL 16 + pgvector](https://img.shields.io/badge/PostgreSQL_16-pgvector-4169E1?style=flat-square&logo=postgresql&logoColor=white)](docker-compose.yml)
+[![Docker Ready](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
+[![Bilingual UI](https://img.shields.io/badge/UI-English_%2B_%E0%AE%A4%E0%AE%AE%E0%AE%BF%E0%AE%B4%E0%AF%8D-8B5CF6?style=flat-square)](apps/web/messages)
 
 <br />
 
