@@ -518,54 +518,40 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-7">
-        {/* Top Workspace Header + Telemetry Pills */}
-        <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-300">
-              <span className="h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
-              <span>{user ? `${user.full_name}’s Vault` : "Student & Researcher Studio"}</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--dm-text)]">
-              Document Workspace
+        {/* Top Workspace Header + Integrated Telemetry */}
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[var(--dm-border)]">
+          <div className="space-y-0.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--dm-text)] flex items-center gap-2.5">
+              <span>Document Workspace</span>
+              <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30">
+                {user ? user.full_name : "Guest Vault"}
+              </span>
             </h1>
-            <p className="text-sm text-[var(--dm-muted)]">
-              Upload once — originals remain untouched as <span className="font-mono font-semibold text-[var(--dm-text)]">v1</span> on every edit.
+            <p className="text-xs text-[var(--dm-muted)]">
+              Upload once &mdash; originals remain untouched as <span className="font-mono font-semibold text-[var(--dm-text)]">v1</span> on every edit.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-indigo-600">
-              <span className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
-                <FileText className="h-4 w-4" />
+            <div className="inline-flex items-center gap-3 text-xs px-3.5 py-1.5 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-surface)] text-[var(--dm-muted)] font-medium shadow-2xs">
+              <span className="flex items-center gap-1.5 text-[var(--dm-text)] font-semibold">
+                <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="font-mono">{docs.length}</span> files
               </span>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Files</p>
-                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{docs.length}</p>
-              </div>
-            </div>
-            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-violet-600">
-              <span className="h-8 w-8 rounded-lg bg-violet-50 dark:bg-violet-500/15 text-violet-600 dark:text-violet-300 flex items-center justify-center">
-                <HardDrive className="h-4 w-4" />
+              <span className="h-3 w-px bg-[var(--dm-border)]" />
+              <span className="flex items-center gap-1.5">
+                <HardDrive className="h-3.5 w-3.5 text-violet-500" />
+                <span className="font-mono font-semibold text-[var(--dm-text)]">{formatBytes(totalUsedBytes)}</span>
               </span>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Storage</p>
-                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{formatBytes(totalUsedBytes)}</p>
-              </div>
-            </div>
-            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-emerald-500">
-              <span className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
-                <Activity className="h-4 w-4" />
+              <span className="h-3 w-px bg-[var(--dm-border)]" />
+              <span className="flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="font-mono font-semibold text-[var(--dm-text)]">{completedJobsCount}</span> runs
               </span>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Completed</p>
-                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{completedJobsCount} jobs</p>
-              </div>
             </div>
+            <PrivacyBadge />
           </div>
         </section>
-
-        {/* Privacy Status Banner */}
-        <PrivacyBadge />
 
         {/* Upload Dropzone & Activity Row (User-Friendly First Screen) */}
         <div className="grid lg:grid-cols-12 gap-5 items-stretch">
@@ -827,8 +813,46 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* AI Multi-Step Workflow Studio */}
-        <AgentWorkflowCard docs={docs} />
+        {/* AI Multi-Step Workflow Studio (Collapsible Progressive Disclosure) */}
+        <section className="dm-card overflow-hidden transition-all border-[var(--dm-border)]">
+          <button
+            type="button"
+            onClick={() => setShowAiStudio((prev) => !prev)}
+            className="w-full px-5 py-3.5 flex items-center justify-between bg-[var(--dm-surface)] hover:bg-[var(--dm-subtle)] transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <span className="h-8 w-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Bot className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--dm-text)] flex items-center gap-2">
+                  <span>AI Agent Workflow Studio</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30">
+                    Multi-Step
+                  </span>
+                </p>
+                <p className="text-xs text-[var(--dm-muted)]">
+                  Chained document tasks (e.g. compress &rarr; watermark &rarr; convert to Word)
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                {showAiStudio ? "Hide Studio" : "Open Studio"}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-[var(--dm-muted)] transition-transform duration-200 ${
+                  showAiStudio ? "rotate-180" : ""
+                }`}
+              />
+            </div>
+          </button>
+          {showAiStudio && (
+            <div className="border-t border-[var(--dm-border)] p-4 sm:p-5 bg-[var(--dm-bg)]">
+              <AgentWorkflowCard docs={docs} />
+            </div>
+          )}
+        </section>
 
         {/* Library + Filters + Grid/List */}
         <section className="space-y-4">

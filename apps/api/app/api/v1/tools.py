@@ -626,6 +626,7 @@ async def convert_document_tool(
             "target_format": payload.target_format,
             "mode": payload.mode,
             "pptx_mode": payload.pptx_mode,
+            "font_name": payload.font_name,
             "output_name": payload.output_name,
         },
         idempotency_key=idempotency_key,

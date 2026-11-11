@@ -50,6 +50,12 @@ const FORMAT_LABELS: Record<ConversionTargetFormat, { label: string; desc: strin
   jpg: { label: "JPG Pages", desc: "Compact 90% quality page images" },
 };
 
+const TARGET_CATEGORIES: Record<string, ConversionTargetFormat[]> = {
+  docs: ["docx", "pdf", "md", "txt", "html"],
+  data: ["xlsx", "csv", "json"],
+  media: ["pptx", "png", "jpg"],
+};
+
 const DOCX_MODES: Array<{ id: DocxConversionMode; title: string; subtitle: string }> = [
   {
     id: "editable",
@@ -102,6 +108,7 @@ function ConvertStudioContent() {
   );
   const [docxMode, setDocxMode] = useState<DocxConversionMode>(defaultDocxMode);
   const [pptxMode, setPptxMode] = useState<"hybrid" | "editable" | "visual">("hybrid");
+  const [fontFamily, setFontFamily] = useState<string>("Times New Roman");
   const [outputName, setOutputName] = useState<string>("");
   const [running, setRunning] = useState(false);
   const [progressMsg, setProgressMsg] = useState<string | null>(null);
@@ -136,9 +143,18 @@ function ConvertStudioContent() {
     return inferExtFromDoc(activeDoc);
   }, [uploadFile, activeDoc]);
 
+  const [categoryTab, setCategoryTab] = useState<"all" | "docs" | "data" | "media">("all");
+
   const availableTargets = useMemo(() => {
     return CONVERSION_TARGETS[sourceExt] ?? CONVERSION_TARGETS.pdf;
   }, [sourceExt]);
+
+  const filteredTargets = useMemo(() => {
+    if (categoryTab === "all") return availableTargets;
+    const allowed = TARGET_CATEGORIES[categoryTab] || [];
+    const subset = availableTargets.filter((t) => allowed.includes(t));
+    return subset.length > 0 ? subset : availableTargets;
+  }, [availableTargets, categoryTab]);
 
   useEffect(() => {
     if (availableTargets.length > 0 && !availableTargets.includes(targetFormat)) {
@@ -190,6 +206,7 @@ function ConvertStudioContent() {
           target_format: targetFormat,
           mode: docxMode,
           pptx_mode: pptxMode,
+          font_name: fontFamily,
           output_name: outputName.trim() || undefined,
         }),
       });
@@ -364,12 +381,38 @@ function ConvertStudioContent() {
             )}
           </div>
 
-          <div className="space-y-2.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
-              2. Target Format ({sourceExt.toUpperCase()} → ?)
-            </label>
-            <div className="grid sm:grid-cols-3 gap-2">
-              {availableTargets.map((fmt) => {
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
+                2. Target Format ({sourceExt.toUpperCase()} &rarr; ?)
+              </label>
+              {availableTargets.length > 4 && (
+                <div className="inline-flex rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] p-0.5 text-[11px] shadow-2xs">
+                  {[
+                    { id: "all", label: "All" },
+                    { id: "docs", label: "Docs" },
+                    { id: "data", label: "Data & Sheets" },
+                    { id: "media", label: "Visual" },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCategoryTab(cat.id as "all" | "docs" | "data" | "media")}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                        categoryTab === cat.id
+                          ? "bg-indigo-600 text-white shadow-2xs font-semibold"
+                          : "text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {filteredTargets.map((fmt) => {
                 const info = FORMAT_LABELS[fmt];
                 const selected = targetFormat === fmt;
                 return (
@@ -377,19 +420,23 @@ function ConvertStudioContent() {
                     key={fmt}
                     type="button"
                     onClick={() => setTargetFormat(fmt)}
-                    className={`p-3 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
                       selected
                         ? "border-indigo-500 bg-indigo-500/12 ring-1 ring-indigo-500/40"
-                        : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-indigo-500/40"
+                        : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-indigo-500/40 hover:bg-[var(--dm-surface)]"
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2">
                       <FileFormatIcon format={fmt} className="h-5 w-5 shrink-0" />
-                      <p className="text-xs font-semibold">{info?.label || fmt.toUpperCase()}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate text-[var(--dm-text)]">
+                          {info?.label || fmt.toUpperCase()}
+                        </p>
+                        <p className="text-[10px] text-[var(--dm-muted)] truncate">
+                          {info?.desc}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[var(--dm-muted)] mt-0.5 line-clamp-2">
-                      {info?.desc}
-                    </p>
                   </button>
                 );
               })}
@@ -435,6 +482,86 @@ function ConvertStudioContent() {
                 <option value="editable">Editable Text &amp; Tables</option>
                 <option value="visual">Exact Visual Slides</option>
               </select>
+            </div>
+          )}
+
+          {(targetFormat === "xlsx" || targetFormat === "docx" || targetFormat === "pptx") && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
+                  Export Typography &amp; Font
+                </label>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  {fontFamily === "Times New Roman" ? "Times New Roman Active" : fontFamily}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "Times New Roman", label: "Times New Roman", desc: "Formal & Academic" },
+                  { id: "Calibri", label: "Calibri", desc: "Classic Office" },
+                  { id: "Aptos", label: "Aptos", desc: "Modern 365" },
+                  { id: "Arial", label: "Arial", desc: "Clean Sans" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFontFamily(f.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      fontFamily === f.id
+                        ? "border-slate-800 dark:border-slate-200 bg-slate-900/5 dark:bg-slate-100/10 ring-1 ring-slate-800/30"
+                        : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-slate-400"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-[var(--dm-text)]">{f.label}</p>
+                    <p className="text-[10px] text-[var(--dm-muted)] mt-0.5">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {targetFormat === "xlsx" && (
+            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Lead Excel Automation Suite Active</span>
+              </div>
+              <ul className="grid sm:grid-cols-2 gap-1 text-[11px] text-[var(--dm-muted)]">
+                <li>&bull; Smart alignment: Numeric right, text left, dates center</li>
+                <li>&bull; Native Auto-Filter enabled across all columns</li>
+                <li>&bull; 26pt header breathing room &amp; auto-fit column widths</li>
+                <li>&bull; Accounting double-underlines on Total &amp; Summary rows</li>
+              </ul>
+            </div>
+          )}
+
+          {targetFormat === "docx" && (
+            <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-1.5 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-300">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Publication Word Output Suite Active</span>
+              </div>
+              <ul className="grid sm:grid-cols-2 gap-1 text-[11px] text-[var(--dm-muted)]">
+                <li>&bull; Times New Roman formal typography &amp; tight paragraph pacing</li>
+                <li>&bull; Repeating table headers on every page break (tblHeader)</li>
+                <li>&bull; Protected rows (cantSplit) to prevent split table rows</li>
+                <li>&bull; 1-inch standard page margins &amp; executive section hierarchy</li>
+              </ul>
+            </div>
+          )}
+
+          {targetFormat === "pptx" && (
+            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1.5 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Executive PowerPoint Widescreen Suite Active</span>
+              </div>
+              <ul className="grid sm:grid-cols-2 gap-1 text-[11px] text-[var(--dm-muted)]">
+                <li>&bull; 16:9 widescreen presentation deck (13.33&quot; x 7.5&quot;)</li>
+                <li>&bull; Auto-populated slide speaker notes for full searchability</li>
+                <li>&bull; Clean bulleted typography &amp; generous presentation margins</li>
+                <li>&bull; High-resolution vector rendering for crisp slide projection</li>
+              </ul>
             </div>
           )}
 
