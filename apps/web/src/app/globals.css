@@ -49,12 +49,14 @@
 
 .dm-ambient-bg {
   background-image:
-    radial-gradient(ellipse 65% 35% at 50% 0%, rgba(226, 232, 240, 0.5), transparent);
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(99, 102, 241, 0.06), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 20%, rgba(56, 189, 248, 0.04), transparent 60%);
 }
 
 .dark .dm-ambient-bg {
   background-image:
-    radial-gradient(ellipse 65% 35% at 50% 0%, rgba(30, 41, 59, 0.4), transparent);
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(99, 102, 241, 0.12), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 20%, rgba(56, 189, 248, 0.08), transparent 60%);
 }
 
 .dm-grid-bg {
@@ -86,13 +88,17 @@
   border: 1px solid var(--dm-border);
   border-radius: var(--dm-radius-card);
   box-shadow: var(--dm-shadow-card);
-  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.dm-card-interactive {
+  position: relative;
 }
 
 .dm-card-interactive:hover {
-  border-color: var(--dm-border-strong);
-  box-shadow: var(--dm-shadow-elevated);
-  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.08), 0 2px 6px rgba(15, 23, 42, 0.03);
+  transform: translateY(-1.5px);
 }
 
 .dm-elevated {
