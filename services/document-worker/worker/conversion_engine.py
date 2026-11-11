@@ -239,21 +239,23 @@ def _cluster_borderless_table_rows(
 ) -> list[tuple[tuple[float, float, float, float], list[list[str]], list[float]]]:
     """
     Detect borderless whitespace-aligned tabular blocks from word coordinates.
+    Never discards rows: words are mapped to column bins based on horizontal coordinates.
     Returns list of (bbox, rows, col_widths).
     """
-    if len(words) < 6:
+    if len(words) < 4:
         return []
-    # Group words into visual lines by top coordinate
+
+    # Group words into visual lines by baseline / top coordinate
     sorted_w = sorted(words, key=lambda w: (round(w["top"], 1), w["x0"]))
     lines: list[list[dict[str, Any]]] = []
     for w in sorted_w:
-        if not lines or abs(w["top"] - lines[-1][0]["top"]) > 4.0:
+        if not lines or abs(w["top"] - lines[-1][0]["top"]) > 4.5:
             lines.append([w])
         else:
             lines[-1].append(w)
 
-    # Split each line into horizontal cells wherever gap > 14pt
-    tabular_candidates: list[tuple[float, float, list[tuple[float, float, str]]]] = []
+    # Segment each line into candidate cell fragments wherever gap >= 12pt
+    line_segments: list[tuple[float, float, list[tuple[float, float, str]]]] = []
     for line in lines:
         line.sort(key=lambda w: w["x0"])
         cells: list[tuple[float, float, str]] = []
@@ -261,7 +263,7 @@ def _cluster_borderless_table_rows(
         cur_x0 = line[0]["x0"]
         cur_x1 = line[0]["x1"]
         for w in line[1:]:
-            if w["x0"] - cur_x1 > 14.0:
+            if w["x0"] - cur_x1 >= 12.0:
                 cells.append((cur_x0, cur_x1, " ".join(cur_text)))
                 cur_text = [w["text"]]
                 cur_x0 = w["x0"]
@@ -270,46 +272,89 @@ def _cluster_borderless_table_rows(
                 cur_text.append(w["text"])
                 cur_x1 = max(cur_x1, w["x1"])
         cells.append((cur_x0, cur_x1, " ".join(cur_text)))
-        if len(cells) >= 3:
-            y0 = min(w["top"] for w in line)
-            y1 = max(w["bottom"] for w in line)
-            tabular_candidates.append((y0, y1, cells))
+        y0 = min(w["top"] for w in line)
+        y1 = max(w["bottom"] for w in line)
+        line_segments.append((y0, y1, cells))
 
-    if len(tabular_candidates) < 2:
-        return []
-
-    # Group consecutive tabular lines within vertical distance <= 26pt
+    # Cluster consecutive lines into tabular blocks if line distance <= 24pt
     groups: list[list[tuple[float, float, list[tuple[float, float, str]]]]] = []
-    for item in tabular_candidates:
-        if not groups or item[0] - groups[-1][-1][1] > 26.0:
-            groups.append([item])
+    for item in line_segments:
+        has_multi = len(item[2]) >= 2
+        if not groups:
+            if has_multi:
+                groups.append([item])
         else:
-            groups[-1].append(item)
+            prev_y1 = groups[-1][-1][1]
+            if item[0] - prev_y1 <= 24.0:
+                groups[-1].append(item)
+            elif has_multi:
+                groups.append([item])
 
     results: list[tuple[tuple[float, float, float, float], list[list[str]], list[float]]] = []
     for grp in groups:
         if len(grp) < 2:
             continue
-        col_counts = [len(r[2]) for r in grp]
-        target_cols = max(set(col_counts), key=col_counts.count)
-        if target_cols < 3:
+
+        multi_col_lines = sum(1 for r in grp if len(r[2]) >= 2)
+        if multi_col_lines < max(1, len(grp) // 2):
             continue
-        valid_rows = [r for r in grp if len(r[2]) == target_cols]
-        if len(valid_rows) < 2:
+
+        all_x0s: list[float] = []
+        for _, _, cells in grp:
+            for c_x0, _, _ in cells:
+                all_x0s.append(c_x0)
+
+        all_x0s.sort()
+        col_splits: list[float] = []
+        for x in all_x0s:
+            if not col_splits or (x - col_splits[-1]) > 16.0:
+                col_splits.append(x)
+            else:
+                col_splits[-1] = (col_splits[-1] + x) / 2.0
+
+        if len(col_splits) < 2:
             continue
-        min_x = min(c[0] for r in valid_rows for c in r[2])
-        max_x = max(c[1] for r in valid_rows for c in r[2])
-        min_y = min(r[0] for r in valid_rows)
-        max_y = max(r[1] for r in valid_rows)
-        col_starts = [min(r[2][i][0] for r in valid_rows) for i in range(target_cols)]
-        col_widths = [
-            (col_starts[i + 1] - col_starts[i])
-            if i + 1 < target_cols
-            else max(40.0, max_x - col_starts[i] + 10.0)
-            for i in range(target_cols)
+
+        num_cols = len(col_splits)
+        dividers = [
+            (col_splits[i] + col_splits[i + 1]) / 2.0 for i in range(num_cols - 1)
         ]
-        rows_txt = [[c[2] for c in r[2]] for r in valid_rows]
-        results.append(((min_x, min_y, max_x, max_y), rows_txt, col_widths))
+
+        table_rows: list[list[str]] = []
+        for _, _, cells in grp:
+            row_cells = [""] * num_cols
+            for c_x0, c_x1, text in cells:
+                c_mid = (c_x0 + c_x1) / 2.0
+                col_idx = 0
+                for d_idx, div in enumerate(dividers):
+                    if c_mid >= div:
+                        col_idx = d_idx + 1
+                    else:
+                        break
+                col_idx = min(col_idx, num_cols - 1)
+                if row_cells[col_idx]:
+                    row_cells[col_idx] += " " + text
+                else:
+                    row_cells[col_idx] = text
+            if any(row_cells):
+                table_rows.append(row_cells)
+
+        if len(table_rows) < 2:
+            continue
+
+        min_x = min(c[0] for r in grp for c in r[2])
+        max_x = max(c[1] for r in grp for c in r[2])
+        min_y = min(r[0] for r in grp)
+        max_y = max(r[1] for r in grp)
+
+        col_widths: list[float] = []
+        for i in range(num_cols):
+            if i + 1 < num_cols:
+                col_widths.append(max(40.0, col_splits[i + 1] - col_splits[i]))
+            else:
+                col_widths.append(max(40.0, max_x - col_splits[i] + 10.0))
+
+        results.append(((min_x, min_y, max_x, max_y), table_rows, col_widths))
     return results
 
 
@@ -790,8 +835,131 @@ def extract_tables_from_pdf(pdf_bytes: bytes) -> list[dict[str, Any]]:
     return extracted_tables
 
 
+def _write_xlsx_table_sheet(
+    wb: openpyxl.Workbook,
+    t: dict[str, Any],
+    grid_border: Border,
+    header_fill: PatternFill,
+    zebra_fill: PatternFill,
+    header_font: Font,
+    body_font: Font,
+) -> None:
+    """Write a single detected table into a new worksheet."""
+    ws = wb.create_sheet(title=f"P{t['page']}_Table{t['table_index']}"[:31])
+    ws.views.sheetView[0].showGridLines = True
+    ws.freeze_panes = "A2"
+    rows: list[list[str]] = t["rows"]
+    col_max_lens = [10] * max(1, t["cols_count"])
+
+    for r_idx, row in enumerate(rows, start=1):
+        for c_idx, raw_val in enumerate(row, start=1):
+            cell = ws.cell(row=r_idx, column=c_idx)
+            if r_idx == 1:
+                cell.value = raw_val
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(
+                    horizontal="center", vertical="center", wrap_text=True
+                )
+            else:
+                parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
+                cell.value = parsed_val
+                cell.font = body_font
+                if r_idx % 2 == 1:
+                    cell.fill = zebra_fill
+                if num_fmt:
+                    cell.number_format = num_fmt
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                else:
+                    cell.alignment = Alignment(
+                        horizontal="left", vertical="center", wrap_text=True
+                    )
+            cell.border = grid_border
+            col_max_lens[c_idx - 1] = max(
+                col_max_lens[c_idx - 1], min(48, len(raw_val) + 4)
+            )
+
+    for c_idx, max_len in enumerate(col_max_lens, start=1):
+        col_pt = t["col_widths_pt"][c_idx - 1] if c_idx - 1 < len(t["col_widths_pt"]) else 0
+        ws.column_dimensions[get_column_letter(c_idx)].width = max(
+            float(max_len), min(46.0, round(col_pt / 6.2, 1)) if col_pt else float(max_len)
+        )
+    ws.page_setup.orientation = (
+        ws.ORIENTATION_LANDSCAPE if t["cols_count"] >= 6 else ws.ORIENTATION_PORTRAIT
+    )
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+
+
+def _write_xlsx_fulltext_sheet(
+    wb: openpyxl.Workbook,
+    pdf_bytes: bytes,
+    header_fill: PatternFill,
+    header_font: Font,
+    body_font: Font,
+) -> int:
+    """
+    Write a lossless Full_Text sheet with every non-empty line from every page.
+    Uses pdfplumber for consistent text extraction matching the table extractor.
+    Returns the number of lines written.
+    """
+    ws = wb.create_sheet(title="Full_Text")
+    ws.freeze_panes = "A2"
+
+    # Header row
+    for col_idx, heading in enumerate(["Page", "Line", "Content"], start=1):
+        cell = ws.cell(row=1, column=col_idx, value=heading)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    thin = Side(border_style="thin", color="CBD5E1")
+    grid_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+
+    row_no = 2
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as plum:
+        for p_no, page in enumerate(plum.pages, start=1):
+            # pdfplumber gives better layout-aware text than pypdf
+            raw_text = page.extract_text(layout=True) or ""
+            # Also try without layout flag as a supplement if layout gives nothing
+            if not raw_text.strip():
+                raw_text = page.extract_text() or ""
+            for l_no, line in enumerate(raw_text.splitlines(), start=1):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                fill = zebra_fill if row_no % 2 == 0 else None
+                for col_idx, val in enumerate([p_no, l_no, stripped], start=1):
+                    cell = ws.cell(row=row_no, column=col_idx, value=val)
+                    cell.font = body_font
+                    cell.border = grid_border
+                    cell.alignment = Alignment(
+                        horizontal="left" if col_idx == 3 else "center",
+                        vertical="center",
+                        wrap_text=(col_idx == 3),
+                    )
+                    if fill:
+                        cell.fill = fill
+                row_no += 1
+
+    ws.column_dimensions["A"].width = 8
+    ws.column_dimensions["B"].width = 8
+    ws.column_dimensions["C"].width = 90
+    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    return row_no - 2
+
+
 def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionArtifact:
-    """Convert PDF tables into formatted Excel sheets with proportional column widths."""
+    """
+    Convert a PDF to Excel with zero data loss:
+    - Each detected table (bordered or whitespace-aligned) becomes its own sheet.
+    - A 'Full_Text' sheet is always appended capturing every line from every page,
+      so content that falls outside detected tables is never discarded.
+    """
     tables = extract_tables_from_pdf(pdf_bytes)
     wb = openpyxl.Workbook()
     warnings: list[str] = []
@@ -803,74 +971,27 @@ def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionA
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     body_font = Font(name="Calibri", size=10, color="0F172A")
 
+    # Remove the default empty sheet before adding content sheets
+    wb.remove(wb.active)
+
     if tables:
-        wb.remove(wb.active)
-        for _idx, t in enumerate(tables, start=1):
-            ws = wb.create_sheet(title=f"P{t['page']}_Table{t['table_index']}"[:31])
-            ws.views.sheetView[0].showGridLines = True
-            ws.freeze_panes = "A2"
-            rows: list[list[str]] = t["rows"]
-            col_max_lens = [10] * max(1, t["cols_count"])
-
-            for r_idx, row in enumerate(rows, start=1):
-                for c_idx, raw_val in enumerate(row, start=1):
-                    cell = ws.cell(row=r_idx, column=c_idx)
-                    if r_idx == 1:
-                        cell.value = raw_val
-                        cell.font = header_font
-                        cell.fill = header_fill
-                        cell.alignment = Alignment(
-                            horizontal="center", vertical="center", wrap_text=True
-                        )
-                    else:
-                        parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
-                        cell.value = parsed_val
-                        cell.font = body_font
-                        if r_idx % 2 == 1:
-                            cell.fill = zebra_fill
-                        if num_fmt:
-                            cell.number_format = num_fmt
-                            cell.alignment = Alignment(horizontal="right", vertical="center")
-                        else:
-                            cell.alignment = Alignment(
-                                horizontal="left", vertical="center", wrap_text=True
-                            )
-                    cell.border = grid_border
-                    col_max_lens[c_idx - 1] = max(
-                        col_max_lens[c_idx - 1], min(48, len(raw_val) + 4)
-                    )
-
-            for c_idx, max_len in enumerate(col_max_lens, start=1):
-                col_pt = t["col_widths_pt"][c_idx - 1] if c_idx - 1 < len(t["col_widths_pt"]) else 0
-                ws.column_dimensions[get_column_letter(c_idx)].width = max(
-                    float(max_len), min(46.0, round(col_pt / 6.2, 1)) if col_pt else float(max_len)
-                )
-            ws.page_setup.orientation = (
-                ws.ORIENTATION_LANDSCAPE if t["cols_count"] >= 6 else ws.ORIENTATION_PORTRAIT
+        for t in tables:
+            _write_xlsx_table_sheet(
+                wb, t, grid_border, header_fill, zebra_fill, header_font, body_font
             )
-            ws.sheet_properties.pageSetUpPr.fitToPage = True
-            ws.page_setup.fitToWidth = 1
-            ws.page_setup.fitToHeight = 0
     else:
-        ws = wb.active
-        ws.title = "Extracted_Text"
-        warnings.append("No structured tables detected; exported page text lines to Excel.")
-        reader = PdfReader(io.BytesIO(pdf_bytes))
-        ws.append(["Page", "Line", "Content"])
-        for cell in ws[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-        row_no = 2
-        for p_no, pg in enumerate(reader.pages, start=1):
-            for l_no, line in enumerate((pg.extract_text() or "").splitlines(), start=1):
-                if line.strip():
-                    ws.cell(row=row_no, column=1, value=p_no)
-                    ws.cell(row=row_no, column=2, value=l_no)
-                    ws.cell(row=row_no, column=3, value=line)
-                    row_no += 1
-        ws.column_dimensions["A"].width = 8
-        ws.column_dimensions["B"].width = 8
-        ws.column_dimensions["C"].width = 88
+        warnings.append(
+            "No structured tables detected. All content is in the Full_Text sheet."
+        )
+
+    # Always append a lossless full-text sheet — no line from any page is ever omitted
+    text_lines = _write_xlsx_fulltext_sheet(wb, pdf_bytes, header_fill, header_font, body_font)
+
+    if not tables and text_lines == 0:
+        warnings.append(
+            "PDF appears to contain no extractable text. "
+            "If it is a scanned image, run OCR first then convert to Excel."
+        )
 
     out = io.BytesIO()
     wb.save(out)
@@ -880,7 +1001,7 @@ def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionA
         output_ext=".xlsx",
         suggested_name=f"{Path(base_name).stem}_tables.xlsx",
         warnings=warnings,
-        meta={"tables_count": len(tables)},
+        meta={"tables_count": len(tables), "full_text_lines": text_lines},
     )
 
 

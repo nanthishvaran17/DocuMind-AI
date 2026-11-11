@@ -24,6 +24,8 @@ import {
   MessageSquareText,
   Minimize2,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   ScanText,
   Search,
   Settings,
@@ -57,6 +59,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydratedFromServer = usePreferencesStore((s) => s.hydratedFromServer);
   const hydrateFromServer = usePreferencesStore((s) => s.hydrateFromServer);
   const [jobsOpen, setJobsOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("documind-sidebar-collapsed");
+      if (saved !== null) {
+        setIsSidebarCollapsed(saved === "true");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("documind-sidebar-collapsed", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!user || isGuest || !token || hydratedFromServer) return;
@@ -163,37 +200,108 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
 
       {/* Desktop Left Sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col border-r border-[var(--dm-border)] bg-[var(--dm-surface)] shrink-0">
-        <div className="h-14 px-4 border-b border-[var(--dm-border)] flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="relative h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/30">
-              <FileText className="h-4 w-4" />
-            </span>
-            <div className="leading-tight">
-              <span className="font-semibold text-sm tracking-tight block">{t.brand}</span>
-              <span className="text-[10px] font-mono text-[var(--dm-muted)] block">
-                Workspace v1
-              </span>
+      <aside
+        className={`hidden md:flex md:flex-col border-r border-[var(--dm-border)] bg-[var(--dm-surface)] text-[var(--dm-text)] shrink-0 shadow-xs transition-all duration-200 ease-in-out ${
+          isSidebarCollapsed ? "md:w-18 lg:w-[72px]" : "md:w-64"
+        }`}
+      >
+        <div
+          className={`h-14 border-b border-[var(--dm-border)] flex items-center ${
+            isSidebarCollapsed ? "px-3 justify-between gap-1" : "px-4 justify-between"
+          }`}
+        >
+          {!isSidebarCollapsed ? (
+            <>
+              <Link href="/" className="flex items-center gap-2.5 group min-w-0">
+                <span className="relative h-8 w-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-xs shrink-0">
+                  <FileText className="h-4 w-4" />
+                </span>
+                <div className="leading-tight truncate">
+                  <span className="font-semibold text-sm tracking-tight text-[var(--dm-text)] block truncate">
+                    {t.brand}
+                  </span>
+                  <span className="text-[10px] font-mono text-[var(--dm-muted)] block truncate">
+                    Studio Workspace
+                  </span>
+                </div>
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-lg text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:bg-[var(--dm-subtle)] border border-transparent hover:border-[var(--dm-border)] transition-colors shrink-0"
+                title="Collapse sidebar (Ctrl+\)"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-between">
+              <Link
+                href="/"
+                className="h-8 w-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-xs shrink-0 mx-auto"
+                title={t.brand}
+              >
+                <FileText className="h-4 w-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1 rounded-lg text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:bg-[var(--dm-subtle)] border border-transparent hover:border-[var(--dm-border)] transition-colors shrink-0"
+                title="Expand sidebar (Ctrl+\)"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </button>
             </div>
-          </Link>
+          )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-5 overflow-y-auto">
-          {navSections.map((section) => (
-            <div key={section.label} className="space-y-1">
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
-                {section.label}
-              </p>
+        <nav
+          className={`flex-1 overflow-y-auto ${
+            isSidebarCollapsed ? "p-2 space-y-3" : "p-3 space-y-5"
+          }`}
+        >
+          {navSections.map((section, sIdx) => (
+            <div key={section.label} className={isSidebarCollapsed ? "space-y-1.5" : "space-y-1"}>
+              {!isSidebarCollapsed ? (
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
+                  {section.label}
+                </p>
+              ) : sIdx > 0 ? (
+                <div className="my-2 border-t border-[var(--dm-border)]" />
+              ) : null}
               {section.items.map((item) => {
                 const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                 const Icon = item.icon;
+
+                if (isSidebarCollapsed) {
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={`${item.label}${item.badge ? ` (${item.badge})` : ""}`}
+                      className={`relative flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[13px] transition-colors ${
+                        active
+                          ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25"
+                          : "text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:bg-[var(--dm-subtle)]"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {item.badge && (
+                        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400" />
+                      )}
+                    </Link>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={`relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors ${
                       active
-                        ? "text-indigo-600 dark:text-indigo-300 font-medium"
+                        ? "text-white font-semibold"
                         : "text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:bg-[var(--dm-subtle)]"
                     }`}
                   >
@@ -201,19 +309,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <motion.span
                         layoutId="sidebar-active-pill"
                         transition={{ duration: 0.18, ease: "easeOut" }}
-                        className="absolute inset-0 rounded-lg bg-indigo-500/12 border border-indigo-500/25"
+                        className="absolute inset-0 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-600/25"
                       />
                     )}
                     <span className="relative flex items-center gap-2.5 min-w-0">
                       <Icon
                         className={`h-4 w-4 shrink-0 ${
-                          active ? "text-indigo-500 dark:text-indigo-400" : ""
+                          active ? "text-white" : "text-[var(--dm-muted)]"
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
                     </span>
                     {item.badge && (
-                      <span className="relative text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--dm-bg)] border border-[var(--dm-border)] text-[var(--dm-muted)]">
+                      <span
+                        className={`relative text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                          active
+                            ? "bg-white/20 border-white/30 text-white"
+                            : "bg-[var(--dm-subtle)] border-[var(--dm-border)] text-[var(--dm-muted)]"
+                        }`}
+                      >
                         {item.badge}
                       </span>
                     )}
@@ -225,75 +339,129 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Bottom Storage + Account Footer */}
-        <div className="p-3 border-t border-[var(--dm-border)] space-y-2.5 text-xs">
-          <div className="p-3 rounded-xl bg-[var(--dm-bg)] border border-[var(--dm-border)] space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <HardDrive className="h-3.5 w-3.5 text-indigo-400" />
-                <span>Vault Usage</span>
+        {!isSidebarCollapsed ? (
+          <div className="p-3 border-t border-[var(--dm-border)] space-y-2.5 text-xs">
+            <div className="p-3 rounded-xl bg-[var(--dm-subtle)] border border-[var(--dm-border)] space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="inline-flex items-center gap-1.5 font-medium text-[var(--dm-text)]">
+                  <HardDrive className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Vault Usage</span>
+                </span>
+                <span className="font-mono text-[var(--dm-muted)]">{formatBytes(totalUsedBytes)}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[var(--dm-border)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-400 transition-all duration-300"
+                  style={{ width: `${usedPct}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-[var(--dm-muted)] flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Originals immutable • Encrypted</span>
+              </p>
+            </div>
+
+            <div className="px-2.5 py-2 rounded-lg bg-[var(--dm-subtle)] border border-[var(--dm-border)] flex items-center gap-2.5">
+              <span className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white font-semibold text-[11px] flex items-center justify-center shrink-0">
+                {user ? user.full_name.slice(0, 2).toUpperCase() : isGuest ? "GS" : "?"}
               </span>
-              <span className="font-mono text-[var(--dm-muted)]">{formatBytes(totalUsedBytes)}</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-[var(--dm-text)] truncate">
+                  {user ? user.full_name : isGuest ? "Guest Mode (1h)" : "Anonymous"}
+                </p>
+                <p className="text-[11px] text-[var(--dm-muted)] truncate">
+                  {user ? user.email : "No signup needed for tools"}
+                </p>
+              </div>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-[var(--dm-border)] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300"
-                style={{ width: `${usedPct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-[var(--dm-muted)] flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />
-              <span>Originals immutable • Encrypted at rest</span>
-            </p>
-          </div>
 
-          <div className="px-2.5 py-2 rounded-lg bg-[var(--dm-subtle)] border border-[var(--dm-border)] flex items-center gap-2.5">
-            <span className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white font-semibold text-[11px] flex items-center justify-center shrink-0">
+            {user ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--dm-border)] text-[var(--dm-muted)] hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-800/60 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>Sign out</span>
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="w-full flex items-center justify-center py-2 rounded-lg dm-primary-btn font-medium text-xs"
+              >
+                Sign in / Save work
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="p-2 border-t border-[var(--dm-border)] flex flex-col items-center gap-2">
+            <div
+              className="h-8 w-8 rounded-lg bg-[var(--dm-subtle)] border border-[var(--dm-border)] flex items-center justify-center text-[var(--dm-text)]"
+              title={`Vault Usage: ${formatBytes(totalUsedBytes)} / 500 MB (${Math.round(usedPct)}%)`}
+            >
+              <HardDrive className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            </div>
+
+            <div
+              className="h-8 w-8 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold text-xs flex items-center justify-center shrink-0 shadow-xs"
+              title={user ? `${user.full_name} (${user.email})` : isGuest ? "Guest Mode (1h)" : "Anonymous"}
+            >
               {user ? user.full_name.slice(0, 2).toUpperCase() : isGuest ? "GS" : "?"}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">
-                {user ? user.full_name : isGuest ? "Guest Mode (1h)" : "Anonymous"}
-              </p>
-              <p className="text-[11px] text-[var(--dm-muted)] truncate">
-                {user ? user.email : "No signup needed for tools"}
-              </p>
             </div>
-          </div>
 
-          {user ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--dm-border)] text-[var(--dm-muted)] hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/10 transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>Sign out</span>
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="w-full flex items-center justify-center py-2 rounded-lg dm-primary-btn font-medium"
-            >
-              Sign in / Save work
-            </Link>
-          )}
-        </div>
+            {user ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-[var(--dm-muted)] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white"
+                title="Sign in / Save work"
+                aria-label="Sign in"
+              >
+                <FileText className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-[var(--dm-border)] bg-[var(--dm-glass)] backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30">
+        <header className="h-14 border-b border-[var(--dm-border)] bg-[var(--dm-surface)]/95 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-2xs">
           <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden md:inline-flex items-center justify-center p-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:border-indigo-500 hover:bg-[var(--dm-subtle)] transition-colors shrink-0"
+              title={isSidebarCollapsed ? "Expand sidebar (Ctrl+\\)" : "Collapse sidebar (Ctrl+\\)"}
+              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </button>
             <Link href="/" className="flex md:hidden items-center gap-2 font-semibold text-sm">
-              <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white">
+              <span className="h-7 w-7 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-xs">
                 <FileText className="h-3.5 w-3.5" />
               </span>
               <span>DocuMind</span>
             </Link>
             <div className="hidden md:flex items-center gap-2 text-xs">
-              <span className="text-[var(--dm-muted)]">Studio</span>
+              <span className="text-[var(--dm-muted)] font-medium">Studio</span>
               <span className="text-[var(--dm-border-strong)]">/</span>
-              <span className="font-semibold text-[var(--dm-text)]">{currentRouteTitle}</span>
+              <span className="font-medium text-[var(--dm-text)] px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+                {currentRouteTitle}
+              </span>
             </div>
           </div>
 
@@ -302,13 +470,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() =>
               window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))
             }
-            className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] text-xs text-[var(--dm-muted)] hover:border-indigo-500/40 hover:text-[var(--dm-text)] w-72 lg:w-80 justify-between transition-colors shadow-sm"
+            className="hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-xl border border-[var(--dm-border-strong)] bg-[var(--dm-subtle)] text-xs text-[var(--dm-muted)] hover:border-indigo-500 hover:text-[var(--dm-text)] w-72 lg:w-80 justify-between transition-colors"
           >
             <span className="flex items-center gap-2 truncate">
-              <Search className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-              <span className="truncate">Quick jump to files &amp; tools...</span>
+              <Search className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="truncate font-medium">Quick jump to files &amp; tools...</span>
             </span>
-            <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-[var(--dm-border)] bg-[var(--dm-bg)] shrink-0">
+            <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] text-[var(--dm-text)] shrink-0">
               Ctrl K
             </kbd>
           </button>
@@ -316,12 +484,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 relative">
             {/* Live Pipeline Activity Popover */}
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setJobsOpen((o) => !o)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] text-xs font-medium hover:bg-[var(--dm-elevated)] transition-colors"
-                aria-label="Recent jobs activity"
-              >
+                <button
+                  type="button"
+                  onClick={() => setJobsOpen((o) => !o)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] text-xs font-semibold hover:border-indigo-500 transition-colors"
+                  aria-label="Recent jobs activity"
+                >
                 <Activity
                   className={`h-3.5 w-3.5 ${
                     runningJobsCount > 0 ? "text-indigo-400 animate-pulse" : "text-emerald-500"
@@ -397,19 +565,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setLocale(locale === "en" ? "ta" : "en")}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] text-xs font-medium hover:bg-[var(--dm-elevated)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] text-xs font-semibold hover:border-indigo-500 transition-colors"
             >
-              <Languages className="h-3.5 w-3.5 text-indigo-400" />
+              <Languages className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>{locale === "en" ? "தமிழ்" : "EN"}</span>
             </button>
             <button
               type="button"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] hover:bg-[var(--dm-elevated)] transition-colors"
+              className="p-2 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-500 transition-colors"
               aria-label="Toggle theme"
             >
               <Sun className="h-4 w-4 hidden dark:block text-amber-400" />
-              <Moon className="h-4 w-4 block dark:hidden text-indigo-500" />
+              <Moon className="h-4 w-4 block dark:hidden text-indigo-600" />
             </button>
           </div>
         </header>

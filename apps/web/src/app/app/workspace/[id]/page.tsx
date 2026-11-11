@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
-  FileText,
   History,
   Layers,
   Loader2,
@@ -41,6 +40,7 @@ import type {
 import { COMPRESS_TARGET_PRESETS, CONVERSION_TARGETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FileFormatIcon } from "@/components/FileFormatIcon";
 import { PdfViewer } from "@/components/PdfViewer";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
@@ -456,9 +456,9 @@ export default function WorkspacePage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shrink-0">
-              <FileText className="h-4 w-4" />
-            </div>
+            <span className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 drop-shadow-xs">
+              <FileFormatIcon mime={doc.mime_type} filename={doc.name} className="h-9 w-9" />
+            </span>
             <div className="min-w-0">
               <h1 className="text-sm font-semibold truncate">{doc.name}</h1>
               <div className="flex items-center gap-2 text-[11px] text-[var(--dm-muted)] font-mono mt-0.5">
@@ -637,7 +637,8 @@ export default function WorkspacePage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full px-6 text-center text-sm text-[var(--dm-muted)] gap-3">
-                    <p>
+                    <FileFormatIcon mime={doc.mime_type} filename={doc.name} className="h-16 w-16 drop-shadow-md" />
+                    <p className="max-w-md">
                       Office files ({doc.name}) can be converted to PDF for page-by-page preview or opened in the Convert tab.
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2">
@@ -1128,7 +1129,10 @@ export default function WorkspacePage() {
                                     : "border-[var(--dm-border)] bg-[var(--dm-surface)] text-[var(--dm-muted)] hover:border-indigo-500/40"
                                 }`}
                               >
-                                <div className="font-mono font-semibold uppercase">{fmt}</div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <FileFormatIcon format={fmt} className="h-4 w-4 shrink-0" />
+                                  <span className="font-mono font-semibold uppercase">{fmt}</span>
+                                </div>
                                 <div className="text-[10px] opacity-80 truncate">
                                   {label}
                                 </div>

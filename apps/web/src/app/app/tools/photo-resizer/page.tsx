@@ -121,7 +121,7 @@ export default function PhotoResizerPage() {
           <div>
             <h1 className="text-2xl font-semibold">Student Photo &amp; Signature Resizer</h1>
             <p className="text-sm text-[var(--dm-muted)] mt-0.5">
-              Exact pixel, DPI, and KB sizing for Passport, GATE, JEE, UPSC, TNPSC, and scholarship portals.
+              Exact pixel, DPI & KB matching for Passport, GATE, JEE, UPSC, TNPSC, and scholarship portals.
             </p>
           </div>
         </div>
@@ -134,10 +134,10 @@ export default function PhotoResizerPage() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="hidden"
             />
-            <div className="h-11 w-11 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center mx-auto mb-3">
-              <Upload className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-violet-500/25">
+              <Upload className="h-5 w-5" />
             </div>
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-bold text-[var(--dm-text)]">
               {file ? file.name : "Upload JPG or PNG photo / signature"}
             </p>
             {file && (
@@ -157,12 +157,12 @@ export default function PhotoResizerPage() {
                   onClick={() => selectPreset(p.id)}
                   className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
                     presetId === p.id
-                      ? "border-violet-500 bg-violet-500/15 shadow-xs"
-                      : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-violet-500/40"
+                      ? "border-violet-600 bg-violet-50 text-violet-950 dark:bg-violet-500/20 dark:text-white dark:border-violet-400 ring-2 ring-violet-500/20 shadow-xs"
+                      : "border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-violet-400 hover:bg-violet-50/30"
                   }`}
                 >
-                  <p className="font-semibold">{p.label}</p>
-                  <p className="font-mono text-[var(--dm-muted)] mt-1">
+                  <p className="font-bold text-[var(--dm-text)]">{p.label}</p>
+                  <p className="font-mono text-violet-700 dark:text-violet-300 font-semibold mt-1">
                     {p.widthPx}×{p.heightPx}px • ≤{p.maxKb}KB
                   </p>
                 </button>
@@ -172,7 +172,7 @@ export default function PhotoResizerPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-muted)] font-medium">Width (px)</span>
+              <span className="text-[var(--dm-text)] font-semibold">Width (px)</span>
               <input
                 type="number"
                 value={widthPx}
@@ -181,7 +181,7 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-muted)] font-medium">Height (px)</span>
+              <span className="text-[var(--dm-text)] font-semibold">Height (px)</span>
               <input
                 type="number"
                 value={heightPx}
@@ -190,7 +190,7 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-muted)] font-medium">DPI</span>
+              <span className="text-[var(--dm-text)] font-semibold">DPI</span>
               <input
                 type="number"
                 value={dpi}
@@ -199,7 +199,7 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-muted)] font-medium">Max KB</span>
+              <span className="text-[var(--dm-text)] font-semibold">Max KB</span>
               <input
                 type="number"
                 value={maxKb}
@@ -209,12 +209,12 @@ export default function PhotoResizerPage() {
             </label>
           </div>
 
-          <label className="flex items-center gap-2.5 text-xs p-3 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] cursor-pointer">
+          <label className="flex items-center gap-2.5 text-xs p-3.5 rounded-xl border border-[var(--dm-border-strong)] bg-white dark:bg-[var(--dm-surface)] text-[var(--dm-text)] font-semibold cursor-pointer shadow-2xs">
             <input
               type="checkbox"
               checked={enhanceBg}
               onChange={(e) => setEnhanceBg(e.target.checked)}
-              className="rounded accent-indigo-500"
+              className="rounded accent-violet-600 h-4 w-4"
             />
             <span>Signature paper cleanup (boost ink contrast &amp; whiten background)</span>
           </label>

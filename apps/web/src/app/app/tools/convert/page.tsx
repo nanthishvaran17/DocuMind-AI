@@ -29,6 +29,7 @@ import type {
 import { CONVERSION_TARGETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { FileFormatIcon } from "@/components/FileFormatIcon";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";
@@ -341,6 +342,26 @@ function ConvertStudioContent() {
                 }}
               />
             </label>
+
+            {(activeDoc || uploadFile) && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--dm-subtle)] border border-[var(--dm-border)]">
+                <span className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 drop-shadow-xs">
+                  <FileFormatIcon
+                    mime={activeDoc?.mime_type}
+                    filename={uploadFile?.name || activeDoc?.name}
+                    className="h-8 w-8"
+                  />
+                </span>
+                <div className="min-w-0 flex-1 text-xs">
+                  <p className="font-semibold truncate text-[var(--dm-text)]">
+                    {uploadFile?.name || activeDoc?.name}
+                  </p>
+                  <p className="text-[11px] text-[var(--dm-muted)] font-mono">
+                    {formatBytes(uploadFile?.size || activeDoc?.size_bytes || 0)} • .{sourceExt.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2.5">
@@ -362,7 +383,10 @@ function ConvertStudioContent() {
                         : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-indigo-500/40"
                     }`}
                   >
-                    <p className="text-xs font-semibold">{info?.label || fmt.toUpperCase()}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileFormatIcon format={fmt} className="h-5 w-5 shrink-0" />
+                      <p className="text-xs font-semibold">{info?.label || fmt.toUpperCase()}</p>
+                    </div>
                     <p className="text-[11px] text-[var(--dm-muted)] mt-0.5 line-clamp-2">
                       {info?.desc}
                     </p>
@@ -529,6 +553,14 @@ function ConvertStudioContent() {
                       {qualityReport.source_table_count} → {qualityReport.converted_table_count}
                     </span>
                   </div>
+                  {Boolean(completedJob?.result_meta?.full_text_lines) && (
+                    <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)] col-span-2 flex items-center justify-between">
+                      <span className="text-[var(--dm-muted)]">Lossless full text backup</span>
+                      <span className="font-mono font-semibold text-emerald-400">
+                        {String(completedJob?.result_meta?.full_text_lines)} lines in Full_Text sheet
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

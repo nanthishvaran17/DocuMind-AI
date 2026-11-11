@@ -123,10 +123,10 @@ export default function CompressToolPage() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="hidden"
             />
-            <div className="h-11 w-11 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center mx-auto mb-3">
-              <Upload className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/25">
+              <Upload className="h-5 w-5" />
             </div>
-            <p className="text-sm font-semibold">{file ? file.name : "Click to choose a PDF file"}</p>
+            <p className="text-sm font-bold text-[var(--dm-text)]">{file ? file.name : "Click to choose a PDF file"}</p>
             <p className="text-xs text-[var(--dm-muted)] mt-1">
               {file ? (
                 <span className="font-mono text-indigo-400">
@@ -152,11 +152,11 @@ export default function CompressToolPage() {
                     onClick={() => setTargetKb(p.targetKb)}
                     className={`p-3.5 rounded-xl border text-left transition-all ${
                       selected
-                        ? "border-indigo-500 bg-indigo-500/15 shadow-xs"
-                        : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-indigo-500/40"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-950 dark:bg-indigo-500/20 dark:text-white dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs"
+                        : "border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-400 hover:bg-indigo-50/30"
                     }`}
                   >
-                    <p className="text-sm font-semibold font-mono">{p.label}</p>
+                    <p className="text-sm font-bold font-mono text-[var(--dm-text)]">{p.label}</p>
                     <p className="text-[11px] text-[var(--dm-muted)] mt-1">{p.useCase}</p>
                   </button>
                 );
@@ -165,7 +165,7 @@ export default function CompressToolPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--dm-border)]">
-            <label className="text-xs font-medium text-[var(--dm-muted)]">Custom Target (KB):</label>
+            <label className="text-xs font-bold text-[var(--dm-text)]">Custom Target (KB):</label>
             <input
               type="number"
               min={10}

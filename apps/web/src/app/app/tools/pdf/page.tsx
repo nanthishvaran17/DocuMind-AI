@@ -142,8 +142,8 @@ export default function MergeSplitPage() {
                         key={d.id}
                         className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
                           checked
-                            ? "border-indigo-500 bg-indigo-500/10"
-                            : "border-[var(--dm-border)] bg-[var(--dm-subtle)]"
+                            ? "border-indigo-600 bg-indigo-50 text-indigo-950 dark:bg-indigo-500/20 dark:text-white dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-2xs font-semibold"
+                            : "border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-400"
                         }`}
                       >
                         <span className="flex items-center gap-2.5 truncate">
@@ -153,7 +153,7 @@ export default function MergeSplitPage() {
                             onChange={() => toggleSelect(d.id)}
                             className="accent-indigo-500"
                           />
-                          <span className="truncate font-medium">{d.name}</span>
+                          <span className="truncate font-bold text-[var(--dm-text)]">{d.name}</span>
                         </span>
                         <span className="font-mono text-[var(--dm-muted)] shrink-0">
                           {formatBytes(d.size_bytes)}
@@ -168,7 +168,7 @@ export default function MergeSplitPage() {
               type="button"
               disabled={selectedIds.length < 2 || running}
               onClick={handleMerge}
-              className="dm-primary-btn w-full py-2.5 text-xs font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
+              className="dm-primary-btn w-full py-2.5 text-xs font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {running && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               <span>Merge Selected ({selectedIds.length})</span>

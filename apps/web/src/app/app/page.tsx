@@ -16,8 +16,6 @@ import {
   Clock,
   Download,
   ExternalLink,
-  FileArchive,
-  FileCheck2,
   FilePlus2,
   FileSearch,
   FileText,
@@ -43,6 +41,11 @@ import { formatBytes, formatRelativeExpiry } from "@documind/shared";
 import { AgentWorkflowCard } from "@/components/AgentWorkflowCard";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  FileFormatIcon,
+  detectFileFormat,
+  getFileFormatMeta,
+} from "@/components/FileFormatIcon";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, ensureAuthSession, fetchAuthorizedBlob } from "@/lib/api";
@@ -76,33 +79,26 @@ function createSamplePdfBlob(): Blob {
 }
 
 function getFileTypeBadge(mime: string, name: string) {
-  const lower = name.toLowerCase();
-  if (mime === "application/pdf" || lower.endsWith(".pdf")) {
-    return {
-      label: "PDF",
-      icon: FileText,
-      bg: "bg-indigo-500/12 border-indigo-500/25 text-indigo-500 dark:text-indigo-300",
-    };
-  }
-  if (mime.startsWith("image/")) {
-    return {
-      label: lower.endsWith(".png") ? "PNG" : "IMG",
-      icon: ImageIcon,
-      bg: "bg-emerald-500/12 border-emerald-500/25 text-emerald-600 dark:text-emerald-300",
-    };
-  }
-  if (mime === "application/zip" || lower.endsWith(".zip")) {
-    return {
-      label: "ZIP",
-      icon: FileArchive,
-      bg: "bg-amber-500/12 border-amber-500/25 text-amber-600 dark:text-amber-300",
-    };
-  }
+  const meta = getFileFormatMeta(mime, name);
   return {
-    label: lower.split(".").pop()?.toUpperCase().slice(0, 4) || "FILE",
-    icon: FileCheck2,
-    bg: "bg-violet-500/12 border-violet-500/25 text-violet-600 dark:text-violet-300",
+    label: meta.label,
+    format: meta.format,
+    bg: meta.badgeBg,
+    chip: meta.chipClass,
+    brandColor: meta.brandColor,
   };
+}
+
+function formatFriendlyActivity(job: JobRecord): string {
+  if (job.status === "completed") return "Completed successfully";
+  if (job.status === "failed") {
+    const raw = (job.stage_message || "").trim();
+    if (!raw || raw.includes("must be") || raw.includes("ValidationError")) {
+      return "Needs adjustment — open tool to retry";
+    }
+    return raw.replace(/^Failed:\s*/i, "");
+  }
+  return job.stage_message || "Processing...";
 }
 
 export default function DashboardPage() {
@@ -120,7 +116,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [filterKind, setFilterKind] = useState<"all" | "pdf" | "images" | "starred">("all");
+  const [filterKind, setFilterKind] = useState<"all" | "pdf" | "office" | "images" | "starred">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -164,16 +160,39 @@ export default function DashboardPage() {
   });
 
   const docs = useMemo(() => docsQuery.data ?? [], [docsQuery.data]);
-  const pdfDocs = useMemo(() => docs.filter((d) => d.mime_type === "application/pdf"), [docs]);
-  const imageDocs = useMemo(() => docs.filter((d) => d.mime_type.startsWith("image/")), [docs]);
+  const pdfDocs = useMemo(
+    () =>
+      docs.filter(
+        (d) => d.mime_type === "application/pdf" || d.name.toLowerCase().endsWith(".pdf")
+      ),
+    [docs]
+  );
+  const officeDocs = useMemo(
+    () =>
+      docs.filter((d) => {
+        const fmt = detectFileFormat(d.mime_type, d.name);
+        return fmt === "xlsx" || fmt === "docx" || fmt === "pptx" || fmt === "csv";
+      }),
+    [docs]
+  );
+  const imageDocs = useMemo(
+    () =>
+      docs.filter(
+        (d) =>
+          d.mime_type.startsWith("image/") ||
+          /\.(png|jpe?g|webp|gif|svg)$/i.test(d.name)
+      ),
+    [docs]
+  );
   const jobs = useMemo(() => jobsQuery.data ?? [], [jobsQuery.data]);
 
   const filteredDocs = useMemo(() => {
-    if (filterKind === "pdf") return docs.filter((d) => d.mime_type === "application/pdf");
-    if (filterKind === "images") return docs.filter((d) => d.mime_type.startsWith("image/"));
+    if (filterKind === "pdf") return pdfDocs;
+    if (filterKind === "office") return officeDocs;
+    if (filterKind === "images") return imageDocs;
     if (filterKind === "starred") return docs.filter((d) => d.is_favorite);
     return docs;
-  }, [docs, filterKind]);
+  }, [docs, filterKind, pdfDocs, officeDocs, imageDocs]);
 
   const uploadChunkedFile = useCallback(
     async (f: File, folderId: string | null): Promise<DocumentItem | null> => {
@@ -385,44 +404,22 @@ export default function DashboardPage() {
 
   const quickTools = [
     {
-      href: "/app/intelligence",
-      title: t.app.intelligence,
-      desc: "Semantic index search, document summaries & cited Q&A.",
-      tag: "Semantic + Q&A",
-      icon: FileSearch,
-      iconBg: "bg-indigo-500/12 border-indigo-500/25 text-indigo-500 dark:text-indigo-300",
-    },
-    {
-      href: "/app/tools/convert",
-      title: t.tools.convert,
-      desc: t.tools.convertDesc,
-      tag: "DOCX • XLSX • PPTX • MD",
-      icon: ArrowLeftRight,
-      iconBg: "bg-sky-500/12 border-sky-500/25 text-sky-500 dark:text-sky-300",
-    },
-    {
-      href: "/app/workflows",
-      title: t.app.workflows,
-      desc: "Chain multi-step plans with live SSE & per-step approval.",
-      tag: "Agent Workflows",
-      icon: Bot,
-      iconBg: "bg-fuchsia-500/12 border-fuchsia-500/25 text-fuchsia-500 dark:text-fuchsia-300",
-    },
-    {
-      href: "/app/tools/ocr",
-      title: t.tools.ocr,
-      desc: t.tools.ocrDesc,
-      tag: "English + தமிழ்",
-      icon: ScanText,
-      iconBg: "bg-amber-500/12 border-amber-500/25 text-amber-500 dark:text-amber-300",
-    },
-    {
       href: "/app/tools/compress",
       title: t.tools.compress,
       desc: t.tools.compressDesc,
       tag: "< 100 KB / 2 MB",
       icon: Minimize2,
-      iconBg: "bg-indigo-500/12 border-indigo-500/25 text-indigo-500 dark:text-indigo-300",
+      iconBg: "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30",
+      tagCls: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
+    },
+    {
+      href: "/app/tools/scan",
+      title: t.tools.scan,
+      desc: t.tools.scanDesc,
+      tag: "Auto-Capture",
+      icon: Camera,
+      iconBg: "bg-cyan-600 text-white shadow-sm shadow-cyan-500/30",
+      tagCls: "bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30",
     },
     {
       href: "/app/tools/photo-resizer",
@@ -430,15 +427,26 @@ export default function DashboardPage() {
       desc: t.tools.photoDesc,
       tag: "300 DPI • GATE / PAN",
       icon: ImageIcon,
-      iconBg: "bg-violet-500/12 border-violet-500/25 text-violet-500 dark:text-violet-300",
+      iconBg: "bg-violet-600 text-white shadow-sm shadow-violet-500/30",
+      tagCls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
     },
     {
-      href: "/app/tools/scan",
-      title: t.tools.scan,
-      desc: t.tools.scanDesc,
-      tag: "Auto-Contrast",
-      icon: Camera,
-      iconBg: "bg-cyan-500/12 border-cyan-500/25 text-cyan-500 dark:text-cyan-300",
+      href: "/app/tools/convert",
+      title: t.tools.convert,
+      desc: t.tools.convertDesc,
+      tag: "DOCX • XLSX • PPTX",
+      icon: ArrowLeftRight,
+      iconBg: "bg-sky-600 text-white shadow-sm shadow-sky-500/30",
+      tagCls: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
+    },
+    {
+      href: "/app/tools/ocr",
+      title: t.tools.ocr,
+      desc: t.tools.ocrDesc,
+      tag: "English + தமிழ்",
+      icon: ScanText,
+      iconBg: "bg-amber-500 text-white shadow-sm shadow-amber-500/30",
+      tagCls: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
     },
     {
       href: "/app/tools/pdf",
@@ -446,7 +454,26 @@ export default function DashboardPage() {
       desc: t.tools.mergeDesc,
       tag: "Immutable v2+",
       icon: Layers,
-      iconBg: "bg-emerald-500/12 border-emerald-500/25 text-emerald-500 dark:text-emerald-300",
+      iconBg: "bg-emerald-600 text-white shadow-sm shadow-emerald-500/30",
+      tagCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+    },
+    {
+      href: "/app/intelligence",
+      title: t.app.intelligence,
+      desc: "Semantic index search, document summaries & cited Q&A.",
+      tag: "AI Search & Q&A",
+      icon: FileSearch,
+      iconBg: "bg-blue-600 text-white shadow-sm shadow-blue-500/30",
+      tagCls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+    },
+    {
+      href: "/app/workflows",
+      title: t.app.workflows,
+      desc: "Run chained document tasks with step-by-step approval.",
+      tag: "Automation",
+      icon: Bot,
+      iconBg: "bg-fuchsia-600 text-white shadow-sm shadow-fuchsia-500/30",
+      tagCls: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:border-fuchsia-500/30",
     },
   ];
 
@@ -462,38 +489,44 @@ export default function DashboardPage() {
         {/* Top Workspace Header + Telemetry Pills */}
         <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 text-xs font-mono text-indigo-500 dark:text-indigo-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+            <div className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-300">
+              <span className="h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
               <span>{user ? `${user.full_name}’s Vault` : "Student & Researcher Studio"}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--dm-text)]">
               Document Workspace
             </h1>
             <p className="text-sm text-[var(--dm-muted)]">
-              Upload once — originals remain untouched as <span className="font-mono">v1</span> on every edit.
+              Upload once — originals remain untouched as <span className="font-mono font-semibold text-[var(--dm-text)]">v1</span> on every edit.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="dm-card px-3.5 py-2 flex items-center gap-2.5 text-xs">
-              <FileText className="h-4 w-4 text-indigo-400" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-indigo-600">
+              <span className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
+                <FileText className="h-4 w-4" />
+              </span>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-[var(--dm-muted)]">Files</p>
-                <p className="font-mono font-semibold">{docs.length}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Files</p>
+                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{docs.length}</p>
               </div>
             </div>
-            <div className="dm-card px-3.5 py-2 flex items-center gap-2.5 text-xs">
-              <HardDrive className="h-4 w-4 text-violet-400" />
+            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-violet-600">
+              <span className="h-8 w-8 rounded-lg bg-violet-50 dark:bg-violet-500/15 text-violet-600 dark:text-violet-300 flex items-center justify-center">
+                <HardDrive className="h-4 w-4" />
+              </span>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-[var(--dm-muted)]">Storage</p>
-                <p className="font-mono font-semibold">{formatBytes(totalUsedBytes)}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Storage</p>
+                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{formatBytes(totalUsedBytes)}</p>
               </div>
             </div>
-            <div className="dm-card px-3.5 py-2 flex items-center gap-2.5 text-xs">
-              <Activity className="h-4 w-4 text-emerald-500" />
+            <div className="dm-card px-4 py-2.5 flex items-center gap-3 text-xs border-l-4 border-l-emerald-500">
+              <span className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
+                <Activity className="h-4 w-4" />
+              </span>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-[var(--dm-muted)]">Completed</p>
-                <p className="font-mono font-semibold">{completedJobsCount} jobs</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dm-muted)]">Completed</p>
+                <p className="font-mono font-bold text-sm text-[var(--dm-text)]">{completedJobsCount} jobs</p>
               </div>
             </div>
           </div>
@@ -502,96 +535,101 @@ export default function DashboardPage() {
         {/* Privacy Status Banner */}
         <PrivacyBadge />
 
-        {/* Studio Bento Grid: Command Bar + Upload (Left 7 cols) & Activity + Storage (Right 5 cols) */}
+        {/* Upload Dropzone & Activity Row (User-Friendly First Screen) */}
         <div className="grid lg:grid-cols-12 gap-5 items-stretch">
-          <div className="lg:col-span-7 flex flex-col gap-5">
-            {/* Hero Multi-Step Agent Command Studio (Phase 4) */}
-            <AgentWorkflowCard docs={docs} />
-
-            {/* Interactive Dropzone */}
-            <motion.section
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragging(false);
-                if (e.dataTransfer.files) handleUploadFiles(e.dataTransfer.files);
-              }}
-              className={`dm-card dm-dot-bg p-6 border-dashed transition-all text-center space-y-4 flex-1 flex flex-col justify-center ${dragging ? "border-indigo-500 bg-indigo-500/10 scale-[1.005]" : "hover:border-indigo-500/40"
-                }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown,.png,.jpg,.jpeg"
-                onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
-                className="hidden"
-              />
-              <div className="mx-auto h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center shadow-sm">
-                {uploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-indigo-500 dark:text-indigo-300" />
-                ) : (
-                  <UploadCloud className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">{t.app.uploadDrop}</p>
-                <p className="text-xs text-[var(--dm-muted)]">{t.app.uploadHint}</p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-mono text-[var(--dm-muted)]">
-                {["PDF", "PNG", "JPG", "DOCX", "XLSX", "PPTX", "MD", "TXT"].map((ext) => (
-                  <span
-                    key={ext}
-                    className="px-2 py-0.5 rounded bg-[var(--dm-surface)] border border-[var(--dm-border)]"
-                  >
-                    {ext}
-                  </span>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
-                <button
-                  type="button"
-                  disabled={uploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="dm-primary-btn px-4 py-2 text-xs font-medium"
+          <motion.section
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (e.dataTransfer.files) handleUploadFiles(e.dataTransfer.files);
+            }}
+            className={`lg:col-span-7 dm-card p-6 sm:p-7 border-2 border-dashed transition-all text-center space-y-4 flex flex-col justify-center bg-gradient-to-br from-white via-white to-indigo-50/70 dark:from-[var(--dm-surface)] dark:via-[var(--dm-surface)] dark:to-indigo-950/20 ${
+              dragging
+                ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-500/15 scale-[1.005]"
+                : "border-indigo-300 dark:border-indigo-500/40 hover:border-indigo-500"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown,.png,.jpg,.jpeg"
+              onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
+              className="hidden"
+            />
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              {uploading ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <UploadCloud className="h-6 w-6" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-semibold text-[var(--dm-text)]">{t.app.uploadDrop}</p>
+              <p className="text-xs text-[var(--dm-muted)]">{t.app.uploadHint}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-mono font-semibold">
+              {["PDF", "PNG", "JPG", "DOCX", "XLSX", "PPTX", "MD", "TXT"].map((ext) => (
+                <span
+                  key={ext}
+                  className="px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-[var(--dm-border)] text-[var(--dm-text)] shadow-2xs"
                 >
-                  {uploading ? "Uploading & Scanning..." : "Choose Files"}
-                </button>
-                <button
-                  type="button"
-                  disabled={uploading}
-                  onClick={loadSampleTour}
-                  className="px-4 py-2 text-xs rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] hover:border-indigo-500/40 inline-flex items-center gap-1.5 transition-colors"
-                >
-                  <FilePlus2 className="h-3.5 w-3.5 text-indigo-400" />
-                  <span>Load Sample PDF Tour</span>
-                </button>
-              </div>
-            </motion.section>
-          </div>
+                  {ext}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="dm-primary-btn px-5 py-2.5 text-xs font-semibold inline-flex items-center gap-2"
+              >
+                <UploadCloud className="h-4 w-4" />
+                <span>{uploading ? "Uploading & Scanning..." : "Choose Files"}</span>
+              </button>
+              <Link
+                href="/app/tools/scan"
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/30 dark:bg-cyan-500/15 dark:text-cyan-200 inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                <span>Auto Camera Scan</span>
+              </Link>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={loadSampleTour}
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] text-[var(--dm-text)] hover:border-indigo-500 inline-flex items-center gap-1.5 transition-colors"
+              >
+                <FilePlus2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Load Sample PDF</span>
+              </button>
+            </div>
+          </motion.section>
 
-          {/* Right 5 cols: Vault Breakdown & Live Pipeline Activity */}
+          {/* Right 5 cols: Vault Breakdown & Clean Recent Activity */}
           <div className="lg:col-span-5 flex flex-col gap-5">
             <section className="dm-card p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-indigo-400" />
-                  <span>Vault Composition</span>
+                <h2 className="text-sm font-semibold flex items-center gap-2 text-[var(--dm-text)]">
+                  <HardDrive className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Vault Storage</span>
                 </h2>
-                <span className="font-mono text-xs text-[var(--dm-muted)]">
+                <span className="font-mono text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/15 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-500/30">
                   {formatBytes(totalUsedBytes)} / 500 MB
                 </span>
               </div>
 
-              <div className="h-2.5 w-full rounded-full bg-[var(--dm-subtle)] border border-[var(--dm-border)] overflow-hidden flex">
+              <div className="h-3 w-full rounded-full bg-slate-100 dark:bg-slate-800 border border-[var(--dm-border)] overflow-hidden flex">
                 {totalUsedBytes > 0 && (
                   <>
                     <div
-                      className="h-full bg-indigo-500 transition-all"
+                      className="h-full bg-indigo-600 transition-all"
                       style={{ width: `${(pdfBytes / totalUsedBytes) * 100}%` }}
                       title={`PDFs: ${formatBytes(pdfBytes)}`}
                     />
@@ -610,26 +648,26 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-[var(--dm-bg)] border border-[var(--dm-border)]">
-                  <div className="flex items-center gap-1.5 text-[var(--dm-muted)] text-[11px]">
-                    <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                <div className="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/25">
+                  <div className="flex items-center gap-1.5 text-indigo-800 dark:text-indigo-300 text-[11px] font-semibold">
+                    <span className="h-2 w-2 rounded-full bg-indigo-600" />
                     <span>PDFs</span>
                   </div>
-                  <p className="font-mono font-semibold mt-1">{pdfDocs.length} • {formatBytes(pdfBytes)}</p>
+                  <p className="font-mono font-bold mt-1 text-[var(--dm-text)]">{pdfDocs.length} • {formatBytes(pdfBytes)}</p>
                 </div>
-                <div className="p-2.5 rounded-lg bg-[var(--dm-bg)] border border-[var(--dm-border)]">
-                  <div className="flex items-center gap-1.5 text-[var(--dm-muted)] text-[11px]">
+                <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25">
+                  <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
                     <span>Images</span>
                   </div>
-                  <p className="font-mono font-semibold mt-1">{imageDocs.length} • {formatBytes(imgBytes)}</p>
+                  <p className="font-mono font-bold mt-1 text-[var(--dm-text)]">{imageDocs.length} • {formatBytes(imgBytes)}</p>
                 </div>
-                <div className="p-2.5 rounded-lg bg-[var(--dm-bg)] border border-[var(--dm-border)]">
-                  <div className="flex items-center gap-1.5 text-[var(--dm-muted)] text-[11px]">
+                <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25">
+                  <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 text-[11px] font-semibold">
                     <span className="h-2 w-2 rounded-full bg-amber-500" />
                     <span>Other</span>
                   </div>
-                  <p className="font-mono font-semibold mt-1">
+                  <p className="font-mono font-bold mt-1 text-[var(--dm-text)]">
                     {docs.length - pdfDocs.length - imageDocs.length} • {formatBytes(otherBytes)}
                   </p>
                 </div>
@@ -638,23 +676,26 @@ export default function DashboardPage() {
 
             <section className="dm-card p-5 space-y-3 flex-1 flex flex-col">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                  <span>Recent Pipeline Telemetry</span>
+                <h2 className="text-sm font-semibold flex items-center gap-2 text-[var(--dm-text)]">
+                  <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Recent Activity</span>
                 </h2>
-                <span className="text-[11px] font-mono text-[var(--dm-muted)]">Real-time SSE</span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Live
+                </span>
               </div>
 
               {jobs.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center py-8 px-4 rounded-xl border border-dashed border-[var(--dm-border)] bg-[var(--dm-bg)]">
-                  <Activity className="h-6 w-6 text-[var(--dm-muted)] mb-2" />
-                  <p className="text-xs font-medium">No tool runs yet</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-6 px-4 rounded-xl border border-dashed border-[var(--dm-border)] bg-[var(--dm-subtle)]">
+                  <Activity className="h-6 w-6 text-indigo-500 mb-2" />
+                  <p className="text-xs font-semibold text-[var(--dm-text)]">No tool runs yet</p>
                   <p className="text-[11px] text-[var(--dm-muted)] mt-1">
-                    Compress, merge, watermark, or resize any file to inspect real metrics here.
+                    Compress, scan, convert, or resize a file to track results here.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2 overflow-y-auto max-h-60 pr-1">
+                <div className="space-y-2 overflow-y-auto max-h-56 pr-1">
                   {jobs.slice(0, 6).map((job) => {
                     const beforeBytes = Number(job.result_meta?.before_bytes || 0);
                     const afterBytes = Number(job.result_meta?.after_bytes || 0);
@@ -667,32 +708,44 @@ export default function DashboardPage() {
                             router.push(`/app/workspace/${job.output_document_id}`);
                           }
                         }}
-                        className="w-full text-left p-2.5 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-bg)] hover:border-indigo-500/40 transition-colors flex items-center justify-between gap-2 text-xs"
+                        className="w-full text-left p-2.5 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:bg-white dark:hover:bg-slate-800/80 hover:border-indigo-400 transition-colors flex items-center justify-between gap-2 text-xs"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {job.status === "completed" ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           ) : job.status === "failed" ? (
-                            <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                            <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
                           ) : (
-                            <Clock className="h-4 w-4 text-indigo-400 animate-pulse shrink-0" />
+                            <Clock className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-pulse shrink-0" />
                           )}
                           <div className="min-w-0">
-                            <p className="font-medium capitalize truncate">
+                            <p className="font-semibold capitalize truncate text-[var(--dm-text)]">
                               {job.job_type.replace("_", " ")}
                             </p>
                             <p className="text-[11px] text-[var(--dm-muted)] truncate">
-                              {job.stage_message || job.status}
+                              {formatFriendlyActivity(job)}
                             </p>
                           </div>
                         </div>
                         {beforeBytes > 0 && afterBytes > 0 ? (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/12 text-emerald-600 dark:text-emerald-300 border border-emerald-500/25 shrink-0">
+                          <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30 shrink-0">
                             {formatBytes(beforeBytes)} → {formatBytes(afterBytes)}
                           </span>
                         ) : (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border border-[var(--dm-border)] text-[var(--dm-muted)] shrink-0">
-                            {job.status}
+                          <span
+                            className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${
+                              job.status === "completed"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30"
+                                : job.status === "failed"
+                                  ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30"
+                                  : "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30"
+                            }`}
+                          >
+                            {job.status === "completed"
+                              ? "Done"
+                              : job.status === "failed"
+                                ? "Needs retry"
+                                : job.status}
                           </span>
                         )}
                       </button>
@@ -707,8 +760,8 @@ export default function DashboardPage() {
         {/* 3-Click Quick Student Tools */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">{t.app.quickTools}</h2>
-            <span className="text-xs text-[var(--dm-muted)]">No signup required • Immutable output</span>
+            <h2 className="text-base font-bold text-[var(--dm-text)]">{t.app.quickTools}</h2>
+            <span className="text-xs font-medium text-[var(--dm-muted)]">No signup required • Originals preserved</span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {quickTools.map((tool) => {
@@ -717,22 +770,22 @@ export default function DashboardPage() {
                 <Link
                   key={tool.href}
                   href={tool.href}
-                  className="group dm-card dm-card-interactive p-4 flex flex-col justify-between gap-3"
+                  className="group dm-card dm-card-interactive p-4 flex flex-col justify-between gap-3.5 hover:bg-gradient-to-b hover:from-white hover:to-indigo-50/40 dark:hover:to-indigo-950/20"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span
-                      className={`h-9 w-9 rounded-xl border flex items-center justify-center ${tool.iconBg}`}
+                      className={`h-10 w-10 rounded-xl flex items-center justify-center ${tool.iconBg}`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4.5 w-4.5" />
                     </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--dm-bg)] border border-[var(--dm-border)] text-[var(--dm-muted)]">
+                    <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border ${tool.tagCls}`}>
                       {tool.tag}
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-sm font-semibold flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-[var(--dm-text)] flex items-center justify-between">
                       <span>{tool.title}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[var(--dm-muted)] group-hover:text-indigo-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      <ArrowUpRight className="h-4 w-4 text-[var(--dm-muted)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                     </h3>
                     <p className="text-xs text-[var(--dm-muted)] leading-relaxed">{tool.desc}</p>
                   </div>
@@ -742,16 +795,20 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* AI Multi-Step Workflow Studio */}
+        <AgentWorkflowCard docs={docs} />
+
         {/* Library + Filters + Grid/List */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-base font-semibold">{t.app.recentDocs}</h2>
-              <div className="inline-flex rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] p-0.5 text-xs">
+              <h2 className="text-base font-bold text-[var(--dm-text)]">{t.app.recentDocs}</h2>
+              <div className="inline-flex rounded-xl border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] p-1 text-xs shadow-2xs">
                 {(
                   [
                     { id: "all", label: `All (${docs.length})` },
                     { id: "pdf", label: `PDF (${pdfDocs.length})` },
+                    { id: "office", label: `Office (${officeDocs.length})` },
                     { id: "images", label: `Images (${imageDocs.length})` },
                     { id: "starred", label: "Starred" },
                   ] as const
@@ -760,10 +817,11 @@ export default function DashboardPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setFilterKind(tab.id)}
-                    className={`px-2.5 py-1 rounded-md transition-colors ${filterKind === tab.id
-                        ? "bg-indigo-500/15 text-indigo-500 dark:text-indigo-300 font-medium"
-                        : "text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
-                      }`}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      filterKind === tab.id
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-[var(--dm-muted)] hover:text-[var(--dm-text)] hover:bg-[var(--dm-subtle)]"
+                    }`}
                   >
                     {tab.label}
                   </button>
@@ -880,7 +938,6 @@ export default function DashboardPage() {
             >
               {filteredDocs.map((doc, idx) => {
                 const badge = getFileTypeBadge(doc.mime_type, doc.name);
-                const TypeIcon = badge.icon;
                 const expiry = formatRelativeExpiry(doc.expires_at);
                 return (
                   <motion.div
@@ -895,10 +952,12 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-start justify-between gap-3 min-w-0 flex-1">
                       <div className="flex items-start gap-3 min-w-0">
-                        <span
-                          className={`h-9 w-9 rounded-xl border flex flex-col items-center justify-center shrink-0 ${badge.bg}`}
-                        >
-                          <TypeIcon className="h-4 w-4" />
+                        <span className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 drop-shadow-sm">
+                          <FileFormatIcon
+                            mime={doc.mime_type}
+                            filename={doc.name}
+                            className="h-9 w-9"
+                          />
                         </span>
                         <div className="min-w-0 flex-1">
                           {editingDocId === doc.id ? (
@@ -953,23 +1012,25 @@ export default function DashboardPage() {
                               </button>
                             </div>
                           )}
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-[var(--dm-muted)] font-mono">
-                            <span className="px-1.5 py-0.2 rounded bg-[var(--dm-bg)] border border-[var(--dm-border)]">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[11px] font-mono">
+                            <span className={`px-2 py-0.5 rounded-md font-semibold border ${badge.chip}`}>
                               {badge.label}
                             </span>
-                            <span>{formatBytes(doc.size_bytes)}</span>
-                            <span>•</span>
-                            <span>v{doc.current_version_no}</span>
+                            <span className="font-semibold text-[var(--dm-text)]">{formatBytes(doc.size_bytes)}</span>
+                            <span className="text-[var(--dm-muted)]">•</span>
+                            <span className="text-[var(--dm-muted)]">v{doc.current_version_no}</span>
                             {doc.page_count !== null && (
                               <>
-                                <span>•</span>
-                                <span>{doc.page_count}p</span>
+                                <span className="text-[var(--dm-muted)]">•</span>
+                                <span className="text-[var(--dm-muted)]">{doc.page_count}p</span>
                               </>
                             )}
                             {expiry && (
                               <>
-                                <span>•</span>
-                                <span className="text-emerald-500">{expiry}</span>
+                                <span className="text-[var(--dm-muted)]">•</span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-medium">
+                                  {expiry}
+                                </span>
                               </>
                             )}
                           </div>
@@ -979,22 +1040,22 @@ export default function DashboardPage() {
                         type="button"
                         onClick={() => handleToggleFavorite(doc)}
                         aria-label="Toggle favorite"
-                        className="p-1 text-[var(--dm-muted)] hover:text-amber-400 shrink-0"
+                        className="p-1 text-[var(--dm-muted)] hover:text-amber-500 shrink-0"
                       >
                         <Star
-                          className={`h-4 w-4 ${doc.is_favorite ? "fill-amber-400 text-amber-400" : ""}`}
+                          className={`h-4.5 w-4.5 ${doc.is_favorite ? "fill-amber-400 text-amber-500" : ""}`}
                         />
                       </button>
                     </div>
 
                     <div
-                      className={`flex items-center justify-between gap-3 text-xs ${viewMode === "grid" ? "pt-2.5 border-t border-[var(--dm-border)]" : ""
+                      className={`flex items-center justify-between gap-3 text-xs ${viewMode === "grid" ? "pt-3 border-t border-[var(--dm-border)]" : ""
                         }`}
                     >
                       <button
                         type="button"
                         onClick={() => router.push(`/app/workspace/${doc.id}`)}
-                        className="inline-flex items-center gap-1.5 text-indigo-500 dark:text-indigo-300 hover:underline font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-100 dark:hover:bg-indigo-500/25 font-semibold transition-colors"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                         <span>Open Studio</span>
@@ -1006,7 +1067,7 @@ export default function DashboardPage() {
                             aria-label="Move to folder"
                             value={doc.folder_id ?? ""}
                             onChange={(e) => handleMoveDocFolder(doc.id, e.target.value || null)}
-                            className="dm-input px-1.5 py-0.5 text-[11px] max-w-[96px]"
+                            className="dm-input px-2 py-1 text-[11px] max-w-[100px] font-medium"
                           >
                             <option value="">Root</option>
                             {foldersQuery.data.map((f) => (
@@ -1019,7 +1080,7 @@ export default function DashboardPage() {
                         {doc.mime_type === "application/pdf" && (
                           <Link
                             href="/app/tools/compress"
-                            className="text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
+                            className="px-2.5 py-1 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-500 text-[var(--dm-muted)] hover:text-[var(--dm-text)] font-semibold transition-colors"
                           >
                             Compress
                           </Link>
@@ -1027,7 +1088,7 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => handleDownload(doc)}
-                          className="inline-flex items-center gap-1 text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-500 text-[var(--dm-muted)] hover:text-[var(--dm-text)] font-semibold transition-colors"
                         >
                           <Download className="h-3.5 w-3.5" />
                           <span>Export</span>

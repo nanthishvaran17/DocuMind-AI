@@ -1,36 +1,40 @@
 :root {
-  --dm-bg: #FAFAFB;
+  --dm-bg: #F8FAFC;
   --dm-surface: #FFFFFF;
   --dm-elevated: #FFFFFF;
-  --dm-subtle: #F3F4F8;
-  --dm-border: #E6E8EC;
-  --dm-border-strong: #D0D5DD;
-  --dm-text: #14161B;
-  --dm-muted: #667085;
-  --dm-primary: #6366F1;
-  --dm-primary-end: #8B5CF6;
+  --dm-subtle: #F1F5F9;
+  --dm-border: #E2E8F0;
+  --dm-border-strong: #CBD5E1;
+  --dm-text: #0F172A;
+  --dm-muted: #64748B;
+  --dm-primary: #0F172A;
+  --dm-primary-end: #1E293B;
+  --dm-accent: #2563EB;
   --dm-success: #10B981;
   --dm-warning: #F59E0B;
   --dm-danger: #EF4444;
-  --dm-info: #38BDF8;
-  --dm-glass: rgba(255, 255, 255, 0.82);
-  --dm-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -10px rgba(16, 24, 40, 0.07);
-  --dm-shadow-elevated: 0 14px 36px -12px rgba(16, 24, 40, 0.12), 0 2px 6px rgba(16, 24, 40, 0.04);
+  --dm-info: #0284C7;
+  --dm-glass: rgba(255, 255, 255, 0.88);
+  --dm-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+  --dm-shadow-elevated: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
   --dm-radius-input: 8px;
   --dm-radius-card: 12px;
   --dm-radius-modal: 16px;
 }
 
 .dark {
-  --dm-bg: #0B0D12;
-  --dm-surface: #12151C;
-  --dm-elevated: #181C25;
-  --dm-subtle: #141821;
-  --dm-border: #232733;
-  --dm-border-strong: #313748;
-  --dm-text: #E8EAF0;
-  --dm-muted: #8B93A7;
-  --dm-glass: rgba(18, 21, 28, 0.82);
-  --dm-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 10px 28px -16px rgba(0, 0, 0, 0.65);
-  --dm-shadow-elevated: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 22px 44px -16px rgba(0, 0, 0, 0.8);
+  --dm-bg: #090D16;
+  --dm-surface: #101626;
+  --dm-elevated: #151D30;
+  --dm-subtle: #131A2C;
+  --dm-border: #1E293B;
+  --dm-border-strong: #334155;
+  --dm-text: #F8FAFC;
+  --dm-muted: #94A3B8;
+  --dm-primary: #F8FAFC;
+  --dm-primary-end: #E2E8F0;
+  --dm-accent: #38BDF8;
+  --dm-glass: rgba(16, 22, 38, 0.85);
+  --dm-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --dm-shadow-elevated: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 16px 36px -8px rgba(0, 0, 0, 0.65);
 }

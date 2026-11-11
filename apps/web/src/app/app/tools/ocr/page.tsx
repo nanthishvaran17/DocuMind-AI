@@ -237,6 +237,26 @@ function OcrStudioContent() {
                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
               />
             </label>
+
+            {(activeDoc || uploadFile) && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--dm-subtle)] border border-[var(--dm-border)]">
+                <span className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 drop-shadow-xs">
+                  <FileFormatIcon
+                    mime={activeDoc?.mime_type}
+                    filename={uploadFile?.name || activeDoc?.name}
+                    className="h-8 w-8"
+                  />
+                </span>
+                <div className="min-w-0 flex-1 text-xs">
+                  <p className="font-semibold truncate text-[var(--dm-text)]">
+                    {uploadFile?.name || activeDoc?.name}
+                  </p>
+                  <p className="text-[11px] text-[var(--dm-muted)] font-mono">
+                    {formatBytes(uploadFile?.size || activeDoc?.size_bytes || 0)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2.5">

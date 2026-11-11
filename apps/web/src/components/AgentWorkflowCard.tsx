@@ -22,6 +22,7 @@ import type { AgentCommandPlan, AgentPlanStep, DocumentItem } from "@documind/ty
 import { API_BASE, apiRequest, ensureAuthSession, pollOrStreamJob } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/components/providers";
+import { FileFormatIcon } from "@/components/FileFormatIcon";
 import { usePreferencesStore } from "@/stores/preferences-store";
 
 interface AgentWorkflowCardProps {
@@ -295,6 +296,7 @@ export function AgentWorkflowCard({
       const val = String(overrides.target_format ?? step.params.target_format ?? "pdf");
       return (
         <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--dm-muted)]">
+          <FileFormatIcon format={val} className="h-4 w-4 shrink-0" />
           <span>Format:</span>
           <select
             value={val}
@@ -330,18 +332,30 @@ export function AgentWorkflowCard({
           </div>
         </div>
         {docs.length > 0 && (
-          <select
-            value={selectedDocId}
-            onChange={(e) => setSelectedDocId(e.target.value)}
-            aria-label="Primary target document"
-            className="dm-input text-xs px-2.5 py-1.5 max-w-[230px] font-medium"
-          >
-            {docs.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name} (v{d.current_version_no})
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1.5">
+            {(() => {
+              const activeDoc = docs.find((d) => d.id === selectedDocId);
+              return activeDoc ? (
+                <FileFormatIcon
+                  mime={activeDoc.mime_type}
+                  filename={activeDoc.name}
+                  className="h-5 w-5 shrink-0"
+                />
+              ) : null;
+            })()}
+            <select
+              value={selectedDocId}
+              onChange={(e) => setSelectedDocId(e.target.value)}
+              aria-label="Primary target document"
+              className="dm-input text-xs px-2.5 py-1.5 max-w-[230px] font-medium"
+            >
+              {docs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} (v{d.current_version_no})
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -358,11 +372,10 @@ export function AgentWorkflowCard({
                   key={d.id}
                   type="button"
                   onClick={() => toggleExtraDoc(d.id)}
-                  className={`px-2 py-0.5 rounded-full border transition-colors ${
-                    active
-                      ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400"
-                      : "border-[var(--dm-border)] text-[var(--dm-muted)] hover:border-indigo-500/30"
-                  }`}
+                  className={`px-2 py-0.5 rounded-full border transition-colors ${active
+                    ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400"
+                    : "border-[var(--dm-border)] text-[var(--dm-muted)] hover:border-indigo-500/30"
+                    }`}
                 >
                   + {d.name}
                 </button>
@@ -443,11 +456,10 @@ export function AgentWorkflowCard({
                 return (
                   <div
                     key={s.step_no}
-                    className={`rounded-xl border p-3 space-y-2 transition-colors ${
-                      s.execution_status === "running"
-                        ? "border-indigo-500/60 bg-indigo-500/8"
-                        : "border-[var(--dm-border)] bg-[var(--dm-surface)]"
-                    }`}
+                    className={`rounded-xl border p-3 space-y-2 transition-colors ${s.execution_status === "running"
+                      ? "border-indigo-500/60 bg-indigo-500/8"
+                      : "border-[var(--dm-border)] bg-[var(--dm-surface)]"
+                      }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
@@ -470,11 +482,10 @@ export function AgentWorkflowCard({
                                 [s.step_no]: !checked,
                               }))
                             }
-                            className={`text-[11px] px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 transition-colors ${
-                              checked
-                                ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-500"
-                                : "bg-[var(--dm-subtle)] border-[var(--dm-border)] text-[var(--dm-muted)]"
-                            }`}
+                            className={`text-[11px] px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 transition-colors ${checked
+                              ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-500"
+                              : "bg-[var(--dm-subtle)] border-[var(--dm-border)] text-[var(--dm-muted)]"
+                              }`}
                           >
                             {checked ? (
                               <>
@@ -562,16 +573,16 @@ export function AgentWorkflowCard({
               </button>
               {plan.steps.filter((s) => !s.execution_status || s.execution_status === "pending")
                 .length > 1 && (
-                <button
-                  type="button"
-                  disabled={approving}
-                  onClick={() => handleApprove(true, "next_step")}
-                  className="px-3.5 py-1.5 text-xs rounded-lg border border-indigo-500/40 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 inline-flex items-center gap-1.5"
-                >
-                  <StepForward className="h-3.5 w-3.5" />
-                  <span>Run Next Step Only</span>
-                </button>
-              )}
+                  <button
+                    type="button"
+                    disabled={approving}
+                    onClick={() => handleApprove(true, "next_step")}
+                    className="px-3.5 py-1.5 text-xs rounded-lg border border-indigo-500/40 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 inline-flex items-center gap-1.5"
+                  >
+                    <StepForward className="h-3.5 w-3.5" />
+                    <span>Run Next Step Only</span>
+                  </button>
+                )}
               <button
                 type="button"
                 disabled={approving}
