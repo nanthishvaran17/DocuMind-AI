@@ -973,7 +973,7 @@ def _write_combined_sheet(
                 data_rows = rows[1:] if first_row == last_header else rows
 
             # Write data rows
-            for r_idx, row in enumerate(data_rows):
+            for row in data_rows:
                 for c_idx, raw_val in enumerate(row, start=1):
                     cell = ws.cell(row=cur_row, column=c_idx)
                     parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
