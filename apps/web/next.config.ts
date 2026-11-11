@@ -15,13 +15,7 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["@documind/shared", "@documind/types", "@documind/ui"],
   experimental: {
-    optimizePackageImports: [
-      "lucide-react",
-      "framer-motion",
-      "cmdk",
-      "react-resizable-panels",
-      "@tanstack/react-query",
-    ],
+    optimizePackageImports: ["lucide-react"],
   },
   images: {
     unoptimized: true,

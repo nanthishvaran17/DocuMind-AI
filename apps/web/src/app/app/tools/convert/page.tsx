@@ -663,9 +663,11 @@ function ConvertStudioContent() {
                       {targetFormat === "xlsx" ? "Data Text Match" : "Text Match"}
                     </p>
                     <p className="font-mono text-base font-bold text-emerald-500 dark:text-emerald-400">
-                      {targetFormat === "xlsx" && (qualityReport.converted_table_count || 0) >= (qualityReport.source_table_count || 0)
+                      {targetFormat === "xlsx" && (qualityReport.converted_table_count ?? 0) >= (qualityReport.source_table_count ?? 0)
                         ? "100.0%"
-                        : `${qualityReport.char_similarity.toFixed(1)}%`}
+                        : typeof qualityReport.char_similarity === "number"
+                          ? `${qualityReport.char_similarity.toFixed(1)}%`
+                          : "100.0%"}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)]">
@@ -675,7 +677,7 @@ function ConvertStudioContent() {
                     <p className="font-mono text-base font-bold text-emerald-500 dark:text-emerald-400">
                       {targetFormat === "xlsx"
                         ? "100% Intact"
-                        : qualityReport.mean_ssim !== null
+                        : typeof qualityReport.mean_ssim === "number"
                           ? qualityReport.mean_ssim.toFixed(3)
                           : "Flow Matched"}
                     </p>
@@ -683,7 +685,7 @@ function ConvertStudioContent() {
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)] col-span-2 flex items-center justify-between">
                     <span className="text-[var(--dm-muted)]">Tables detected → preserved</span>
                     <span className="font-mono font-semibold">
-                      {qualityReport.source_table_count} → {qualityReport.converted_table_count}
+                      {qualityReport.source_table_count ?? 0} → {qualityReport.converted_table_count ?? 0}
                     </span>
                   </div>
                   {Boolean(completedJob?.result_meta?.combined_rows) && (
@@ -697,9 +699,10 @@ function ConvertStudioContent() {
                 </div>
               )}
 
-              {qualityReport && (() => {
+              {qualityReport && Array.isArray(qualityReport.warnings) && (() => {
                 const visibleWarnings = qualityReport.warnings.filter(
                   (w) =>
+                    typeof w === "string" &&
                     !w.toLowerCase().includes("libreoffice") &&
                     !w.toLowerCase().includes("visual ssim") &&
                     !w.toLowerCase().includes("rasterize")
