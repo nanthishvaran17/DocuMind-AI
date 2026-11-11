@@ -1,5 +1,15 @@
+import Link from "next/link";
 import { Shield } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Navbar } from "@/components/Navbar";
+import { buildPageMetadata } from "@/lib/siteConfig";
+
+export const metadata = buildPageMetadata({
+  title: "Privacy Policy (DPDP & GDPR)",
+  description:
+    "How DocuMind AI protects your documents with zero AI model training, 1-hour Guest Mode auto-deletion, and encrypted private storage.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (
@@ -7,6 +17,7 @@ export default function PrivacyPage() {
       <Navbar />
       <main className="flex-1 dm-grid-bg">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-14 space-y-6">
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Privacy Policy" }]} />
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-xs font-medium">
               <Shield className="h-3.5 w-3.5" />
@@ -49,6 +60,20 @@ export default function PrivacyPage() {
               </p>
             </div>
           </section>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--dm-muted)] pt-2">
+            <div className="flex flex-wrap gap-4">
+              <Link href="/security" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+                Security Architecture
+              </Link>
+              <Link href="/terms" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+                Terms of Service
+              </Link>
+              <Link href="/app" className="hover:text-[var(--dm-text)] underline underline-offset-4">
+                Open Document Workspace
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
     </div>

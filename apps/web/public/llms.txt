@@ -1,0 +1,33 @@
+# DocuMind AI
+
+> Privacy-first PDF, Auto Document Scanner, Exam Photo Resizer, Format Converter, and Bilingual (English + Tamil) Cited AI Document Workspace.
+
+## Key Capabilities
+- **Auto Document Scanner** (`/app/tools/scan`): Hands-free live camera scanner with automatic document edge detection, perspective cropping, page-change auto-capture, and multi-page PDF export.
+- **Exact-KB PDF Compressor** (`/app/tools/compress`): Compress PDFs to exact portal limits (100 KB, 200 KB, 500 KB, or custom KB) with transparent metrics and immutable v1 history.
+- **Student Photo & Signature Resizer** (`/app/tools/photo-resizer`): 1-click dimension and KB presets for Passport, Signature, GATE/JEE, UPSC/TNPSC, and PAN.
+- **Merge, Split & PDF Studio** (`/app/tools/pdf`, `/app`): Combine, split, reorder, rotate, watermark, page-number, and password-protect/unlock PDFs.
+- **Universal Format Converter** (`/app/tools/convert`): Convert across PDF, DOCX, XLSX, PPTX, Markdown, TXT, HTML, CSV, JSON, PNG, and JPG with visual verification.
+- **Bilingual OCR (English + Tamil)** (`/app/tools/ocr`): Extract searchable text from scanned PDFs and camera images.
+- **AI Search & Cited Q&A** (`/app/intelligence`): Ask grounded questions across documents with page-level citations.
+- **Agent Workflows** (`/app/workflows`): Natural-language multi-step document pipelines with explicit user approval before execution.
+
+## Privacy & Security Guarantees
+- Zero AI model training on user documents.
+- Guest Mode requires no signup; guest documents and sessions auto-delete after 1 hour or immediately via "Delete now".
+- Original uploaded files stay preserved as immutable v1; every edit writes a new version.
+- India DPDP Act 2023 and GDPR aligned (`/privacy`, `/security`, `/terms`).
+
+## Canonical URLs
+- Home: https://documind.ai/
+- Workspace: https://documind.ai/app
+- Auto Document Scanner: https://documind.ai/app/tools/scan
+- Compress PDF: https://documind.ai/app/tools/compress
+- Photo & Signature Resizer: https://documind.ai/app/tools/photo-resizer
+- Merge & Split PDF: https://documind.ai/app/tools/pdf
+- Format Converter: https://documind.ai/app/tools/convert
+- OCR Tool: https://documind.ai/app/tools/ocr
+- AI Search & Q&A: https://documind.ai/app/intelligence
+- Security Architecture: https://documind.ai/security
+- Privacy Policy: https://documind.ai/privacy
+- Terms of Service: https://documind.ai/terms

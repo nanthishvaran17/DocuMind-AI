@@ -402,9 +402,9 @@ You can also use the [`Makefile`](Makefile) shortcuts (`make dev`, `make dev-api
 ## Roadmap
 
 - [x] **Phase 1 — Foundation & Core PDF/Student Suite:** Monorepo setup, Argon2id/JWT auth + guest mode, chunked uploads + ClamAV/validation, immutable `v1..vN` versioning, PDF.js workspace, bilingual EN/தமிழ் UI, PDF merge/split/page-ops/watermark/page-numbers/protect/unlock, exact-KB compression, exam photo & signature resizer, camera scan to PDF, and approval-gated command bar.
-- [ ] **Phase 2 — Document Intelligence & RAG:** `pgvector` chunk embeddings, semantic search, citation-backed Q&A over uploaded documents.
-- [ ] **Phase 3 — Format Conversions:** High-fidelity DOCX / XLSX / PPTX / Markdown ↔ PDF pipelines.
-- [ ] **Phase 4 — Multi-Step LLM Agent Workflows:** Chained tool execution with live plan inspection and granular approvals.
+- [x] **Phase 2 — Document Intelligence & RAG:** `pgvector` chunk embeddings, semantic search, citation-backed Q&A over uploaded documents.
+- [x] **Phase 3 — Format Conversions:** High-fidelity DOCX / XLSX / PPTX / Markdown ↔ PDF pipelines.
+- [x] **Phase 4 — Multi-Step LLM Agent Workflows:** Chained tool execution with live plan inspection and granular approvals.
 
 ---
 

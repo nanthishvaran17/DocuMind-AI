@@ -14,20 +14,50 @@ import "@fontsource/noto-sans-tamil/600.css";
 import "@fontsource/noto-sans-tamil/700.css";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { GlobalStructuredData } from "@/components/StructuredData";
+import {
+  SITE_DEFAULT_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/siteConfig";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "DocuMind AI — All-in-One PDF & Student Document Workspace",
-    template: "%s | DocuMind AI",
+    default: `${SITE_NAME} — Privacy-First PDF, Auto Scanner & Document Workspace`,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "Upload PDFs, compress to exact KB for portals, resize passport photos, merge, split, watermark, and collaborate in English & Tamil with immutable version history.",
+  description: SITE_DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
-    title: "DocuMind AI — Student & Research Document Workspace",
-    description:
-      "Every PDF tool, cited AI & college report workflow in one calm, privacy-first workspace.",
+    title: `${SITE_NAME} — Student & Research Document Workspace`,
+    description: SITE_DEFAULT_DESCRIPTION,
+    url: "/",
+    siteName: SITE_NAME,
     type: "website",
+    locale: "en_IN",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} — Privacy-First PDF & Auto Document Scanner`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Student & Research Document Workspace`,
+    description: SITE_DEFAULT_DESCRIPTION,
+    images: ["/twitter-image"],
   },
 };
 
@@ -41,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased selection:bg-indigo-500/25">
+        <GlobalStructuredData />
         <Providers>{children}</Providers>
       </body>
     </html>
