@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GraduationCap, Loader2, UserPlus } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Loader2, ShieldCheck, UserPlus } from "lucide-react";
 import type { AuthSession } from "@documind/types";
 import { apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -16,7 +16,11 @@ import { Navbar } from "@/components/Navbar";
 const registerSchema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
   email: z.string().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -27,6 +31,7 @@ export default function RegisterPage() {
   const locale = useAuthStore((s) => s.locale);
   const { pushToast } = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,

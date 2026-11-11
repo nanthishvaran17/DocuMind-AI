@@ -146,33 +146,54 @@ export default function PhotoResizerPage() {
           </label>
 
           <div className="space-y-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
-              Exam &amp; Portal Presets
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
+                Exam &amp; Portal Presets
+              </p>
+              <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                Official specifications
+              </span>
+            </div>
             <div className="grid sm:grid-cols-3 gap-2.5">
-              {PHOTO_RESIZE_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => selectPreset(p.id)}
-                  className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
-                    presetId === p.id
-                      ? "border-violet-600 bg-violet-50 text-violet-950 dark:bg-violet-500/20 dark:text-white dark:border-violet-400 ring-2 ring-violet-500/20 shadow-xs"
-                      : "border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-violet-400 hover:bg-violet-50/30"
-                  }`}
-                >
-                  <p className="font-bold text-[var(--dm-text)]">{p.label}</p>
-                  <p className="font-mono text-violet-700 dark:text-violet-300 font-semibold mt-1">
-                    {p.widthPx}×{p.heightPx}px • ≤{p.maxKb}KB
-                  </p>
-                </button>
-              ))}
+              {PHOTO_RESIZE_PRESETS.map((p) => {
+                const active = presetId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => selectPreset(p.id)}
+                    className={`p-3.5 rounded-xl border text-left text-xs transition-all flex flex-col justify-between gap-2 ${
+                      active
+                        ? "border-violet-600 bg-violet-50/70 text-violet-950 dark:bg-violet-500/20 dark:text-white dark:border-violet-400 ring-2 ring-violet-500/25 shadow-xs"
+                        : "border-[var(--dm-border)] bg-white dark:bg-[var(--dm-surface)] hover:border-violet-400 hover:shadow-2xs text-[var(--dm-text)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <p className="font-bold text-[var(--dm-text)]">{p.label}</p>
+                      {active && (
+                        <span className="h-2 w-2 rounded-full bg-violet-600 dark:bg-violet-400 shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between font-mono text-[11px]">
+                      <span className="text-[var(--dm-muted)] font-medium">
+                        {p.widthPx}×{p.heightPx}px
+                      </span>
+                      <span className="font-semibold text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded bg-violet-100/70 dark:bg-violet-500/20">
+                        ≤{p.maxKb}KB
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-text)] font-semibold">Width (px)</span>
+              <span className="text-[var(--dm-text)] font-semibold flex items-center justify-between">
+                <span>Width</span>
+                <span className="text-[10px] font-mono text-[var(--dm-muted)]">px</span>
+              </span>
               <input
                 type="number"
                 value={widthPx}
@@ -181,7 +202,10 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-text)] font-semibold">Height (px)</span>
+              <span className="text-[var(--dm-text)] font-semibold flex items-center justify-between">
+                <span>Height</span>
+                <span className="text-[10px] font-mono text-[var(--dm-muted)]">px</span>
+              </span>
               <input
                 type="number"
                 value={heightPx}
@@ -190,7 +214,10 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-text)] font-semibold">DPI</span>
+              <span className="text-[var(--dm-text)] font-semibold flex items-center justify-between">
+                <span>DPI</span>
+                <span className="text-[10px] font-mono text-[var(--dm-muted)]">print</span>
+              </span>
               <input
                 type="number"
                 value={dpi}
@@ -199,7 +226,10 @@ export default function PhotoResizerPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[var(--dm-text)] font-semibold">Max KB</span>
+              <span className="text-[var(--dm-text)] font-semibold flex items-center justify-between">
+                <span>Max Target</span>
+                <span className="text-[10px] font-mono text-[var(--dm-muted)]">KB</span>
+              </span>
               <input
                 type="number"
                 value={maxKb}
@@ -209,14 +239,21 @@ export default function PhotoResizerPage() {
             </label>
           </div>
 
-          <label className="flex items-center gap-2.5 text-xs p-3.5 rounded-xl border border-[var(--dm-border-strong)] bg-white dark:bg-[var(--dm-surface)] text-[var(--dm-text)] font-semibold cursor-pointer shadow-2xs">
+          <label className="flex items-center justify-between gap-3 text-xs p-3.5 rounded-xl border border-[var(--dm-border)] bg-white dark:bg-[var(--dm-surface)] text-[var(--dm-text)] cursor-pointer shadow-2xs hover:border-violet-300 transition-colors">
+            <div className="space-y-0.5">
+              <p className="font-semibold text-[var(--dm-text)]">
+                Signature paper cleanup
+              </p>
+              <p className="text-[11px] text-[var(--dm-muted)]">
+                Boost ink contrast and whiten off-white paper background for portals
+              </p>
+            </div>
             <input
               type="checkbox"
               checked={enhanceBg}
               onChange={(e) => setEnhanceBg(e.target.checked)}
-              className="rounded accent-violet-600 h-4 w-4"
+              className="rounded accent-violet-600 h-4.5 w-4.5 shrink-0 cursor-pointer"
             />
-            <span>Signature paper cleanup (boost ink contrast &amp; whiten background)</span>
           </label>
 
           <button

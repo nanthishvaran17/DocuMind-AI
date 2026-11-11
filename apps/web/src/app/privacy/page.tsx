@@ -5,13 +5,9 @@ import {
   Clock,
   Trash2,
   FileText,
-  UserCheck,
-  Database,
   ArrowRight,
   EyeOff,
   Building,
-  Mail,
-  Scale,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Navbar } from "@/components/Navbar";

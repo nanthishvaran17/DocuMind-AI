@@ -31,6 +31,10 @@ class InMemoryRateLimiter:
 _limiter = InMemoryRateLimiter()
 
 
+async def check_rate_limit(key: str, limit: int, window_seconds: int = 60) -> None:
+    await _limiter.check(key, limit=limit, window_seconds=window_seconds)
+
+
 async def rate_limit_dependency(request: Request) -> None:
     settings = get_settings()
     client_ip = request.client.host if request.client else "unknown"

@@ -3,12 +3,9 @@ import {
   Scale,
   ShieldCheck,
   FileText,
-  AlertTriangle,
   Lock,
   Clock,
   ArrowRight,
-  CheckCircle2,
-  HelpCircle,
   Building,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";

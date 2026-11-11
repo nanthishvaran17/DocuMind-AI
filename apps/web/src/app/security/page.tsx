@@ -8,7 +8,6 @@ import {
   FileCheck2,
   Terminal,
   ArrowRight,
-  Database,
   Building,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";

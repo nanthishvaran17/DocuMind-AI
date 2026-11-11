@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Lock, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { AuthSession } from "@documind/types";
 import { API_BASE, apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -25,6 +25,7 @@ export default function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession);
   const { pushToast } = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -106,11 +107,22 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <input
-                type="password"
-                {...register("password")}
-                className="dm-input w-full px-3.5 py-2.5 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  autoComplete="current-password"
+                  className="dm-input w-full pl-3.5 pr-10 py-2.5 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--dm-muted)] hover:text-[var(--dm-text)] transition-colors p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
             </div>
 

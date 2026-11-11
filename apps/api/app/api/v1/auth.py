@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 import httpx
 from app.api.deps import ActorContext, get_current_actor
 from app.core.config import get_settings
+from app.core.rate_limit import check_rate_limit
 from app.core.security import (
     create_access_token,
     create_signed_purpose_token,
@@ -110,6 +111,10 @@ async def register(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    # Registration spam protection: max 5 registrations per minute per IP
+    await check_rate_limit(f"auth:register:ip:{client_ip}", limit=5, window_seconds=60)
+
     email = payload.email.lower().strip()
     existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing:
@@ -159,6 +164,10 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    # Strict brute-force protection: max 10 failed login attempts per minute per IP
+    await check_rate_limit(f"auth:login:ip:{client_ip}", limit=10, window_seconds=60)
+
     email = payload.email.lower().strip()
     user = (
         await db.execute(select(User).where(User.email == email, User.deleted_at.is_(None)))

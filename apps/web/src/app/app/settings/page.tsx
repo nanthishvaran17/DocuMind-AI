@@ -996,6 +996,33 @@ export default function SettingsPage() {
                         versioning and encryption at rest.
                       </p>
                     </section>
+
+                    {/* Danger Zone: Delete Account */}
+                    <section className="dm-card p-6 border-red-500/30 bg-red-500/5 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-red-500 dark:text-red-400 text-sm font-semibold">
+                          <ShieldAlert className="h-4 w-4" />
+                          <span>Danger Zone (Delete Account)</span>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border border-red-500/30 bg-red-500/10 text-red-500 font-semibold uppercase">
+                          Irreversible
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--dm-muted)] leading-relaxed">
+                        If you no longer wish to use DocuMind, you can permanently delete your account here.
+                        All your documents, generated versions, Q&amp;A history, and preferences will be permanently wiped immediately under GDPR &amp; DPDP compliance.
+                      </p>
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSettingsConfirm({ type: "delete_account" })}
+                          className="px-4 py-2 text-xs font-semibold rounded-xl border border-red-500/40 text-red-500 dark:text-red-400 hover:bg-red-500/10 hover:border-red-500 transition-colors inline-flex items-center gap-2"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete My Account</span>
+                        </button>
+                      </div>
+                    </section>
                   </>
                 )}
               </div>
@@ -1400,6 +1427,28 @@ export default function SettingsPage() {
                       <span>Reset Defaults</span>
                     </button>
                   </div>
+
+                  {/* Permanent Account Deletion */}
+                  {user && !isGuest && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-red-500/20">
+                      <div>
+                        <p className="text-sm font-semibold text-red-500 dark:text-red-400">
+                          Delete Account (GDPR / DPDP Permanent Deletion)
+                        </p>
+                        <p className="text-xs text-[var(--dm-muted)]">
+                          Permanently delete your account profile, all vault documents, and Q&amp;A history.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsConfirm({ type: "delete_account" })}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-red-500/40 text-red-500 dark:text-red-400 text-xs font-semibold hover:bg-red-500/10 transition-colors"
+                      >
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        <span>Delete Account</span>
+                      </button>
+                    </div>
+                  )}
                 </section>
               </div>
             )}
