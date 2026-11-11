@@ -18,3 +18,6 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 testpaths = ["../../tests"]
 pythonpath = [".", "../../services/document-worker"]
+
+[tool.coverage.run]
+concurrency = ["thread", "greenlet"]
