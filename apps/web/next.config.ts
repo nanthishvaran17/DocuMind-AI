@@ -8,9 +8,20 @@ const nextConfig: NextConfig = {
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const } : {}),
   compress: true,
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+  },
   transpilePackages: ["@documind/shared", "@documind/types", "@documind/ui"],
   experimental: {
-    optimizePackageImports: ["lucide-react", "framer-motion", "cmdk", "react-resizable-panels"],
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "cmdk",
+      "react-resizable-panels",
+      "@tanstack/react-query",
+    ],
   },
   images: {
     unoptimized: true,
