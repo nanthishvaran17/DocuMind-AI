@@ -6,7 +6,12 @@ const backendInternalUrl = (
 
 const nextConfig: NextConfig = {
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const } : {}),
+  compress: true,
+  poweredByHeader: false,
   transpilePackages: ["@documind/shared", "@documind/types", "@documind/ui"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "framer-motion", "cmdk", "react-resizable-panels"],
+  },
   images: {
     unoptimized: true,
   },

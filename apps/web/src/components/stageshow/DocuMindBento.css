@@ -1,0 +1,326 @@
+.dmb-root {
+  --dmb-pad: 26px;
+  --dmb-gap: 16px;
+  container-type: inline-size;
+  width: 100%;
+}
+
+.dmb-grid {
+  display: grid;
+  gap: var(--dmb-gap);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 340px 300px 280px 280px 280px;
+  grid-template-areas:
+    "hero"
+    "stat"
+    "presets"
+    "security"
+    "diagram";
+}
+
+@container (min-width: 640px) {
+  .dmb-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 340px 290px 290px;
+    grid-template-areas:
+      "hero hero"
+      "stat presets"
+      "security diagram";
+  }
+}
+
+@container (min-width: 960px) {
+  .dmb-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: 346px 292px;
+    grid-template-areas:
+      "hero hero stat"
+      "presets security diagram";
+  }
+}
+
+.dmb-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  box-shadow: var(--dm-shadow-card);
+}
+
+.dmb-tile[data-dark] {
+  background: #12151c;
+  border-color: #232733;
+}
+
+.dmb-tile--hero { grid-area: hero; }
+.dmb-tile--stat { grid-area: stat; }
+.dmb-tile--presets { grid-area: presets; }
+.dmb-tile--security { grid-area: security; }
+.dmb-tile--diagram { grid-area: diagram; }
+
+.dmb-copy {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  padding: 22px var(--dmb-pad) 0;
+  max-width: 440px;
+  font-size: 16px;
+  line-height: 23px;
+  letter-spacing: -0.015em;
+  color: var(--dm-muted);
+}
+
+.dmb-copy strong {
+  font-weight: 600;
+  color: var(--dm-text);
+}
+
+.dmb-tile[data-dark] .dmb-copy {
+  color: #9ba3b8;
+}
+
+.dmb-tile[data-dark] .dmb-copy strong {
+  color: #f3f5fa;
+}
+
+.dmb-picture {
+  position: absolute;
+  bottom: 0;
+}
+
+.dmb-picture--full {
+  left: 0;
+  width: 100%;
+}
+
+.dmb-stage .ss-stage {
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Tile 1: Hero window */
+.dmb-hero-win {
+  position: absolute;
+  top: 12px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.dmb-hero-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.dmb-hero-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--ss-radius-md);
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-line-faint);
+}
+
+.dmb-hero-row {
+  padding: 0;
+}
+
+.dmb-hero-row--filler {
+  padding: 6px 12px;
+}
+
+.dmb-file-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent-text);
+  font-family: var(--ss-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.dmb-row-name {
+  font-family: var(--ss-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ss-text-strong);
+}
+
+.dmb-row-sub {
+  font-family: var(--ss-mono);
+  font-size: 10.5px;
+  color: var(--ss-text-faint);
+}
+
+.dmb-hero-meter {
+  padding-top: 2px;
+}
+
+/* Tile 2: Dark stat */
+.dmb-stat-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 var(--dmb-pad) 16px;
+  gap: 8px;
+}
+
+.dmb-stat-value {
+  font-family: var(--ss-mono);
+  font-size: 62px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #f3f5fa;
+}
+
+.dmb-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #34d399;
+}
+
+.dmb-stat-caption {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ba3b8;
+}
+
+/* Tiles 3 & 4: Focused components */
+.dmb-component-pad {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 var(--dmb-pad) 22px;
+}
+
+.dmb-segmented {
+  align-self: flex-start;
+}
+
+.dmb-preset-card {
+  width: 100%;
+}
+
+.dmb-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dmb-preset-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dmb-preset-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ss-text-strong);
+}
+
+.dmb-preset-sub {
+  font-family: var(--ss-mono);
+  font-size: 11px;
+  color: var(--ss-text-faint);
+}
+
+.dmb-accent-icon {
+  color: var(--ss-accent);
+  flex: none;
+}
+
+.dmb-muted-icon {
+  color: var(--ss-icon-faint);
+  flex: none;
+}
+
+.dmb-security-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dmb-security-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dmb-security-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dmb-security-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ss-line-faint);
+}
+
+/* Tile 5: Command diagram */
+.dmb-diagram {
+  position: relative;
+  height: 100%;
+  padding: 18px var(--dmb-pad) 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+}
+
+.dmb-diagram-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1;
+}
+
+.dmb-node {
+  padding: 6px 12px;
+  border-radius: var(--ss-radius-md);
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-line);
+  box-shadow: var(--ss-shadow-card);
+}
+
+.dmb-node__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ss-text);
+}
+
+.dmb-plan-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--ss-radius-md);
+  background: var(--ss-accent-soft);
+  border: 1px solid rgba(99, 102, 241, 0.32);
+  z-index: 1;
+}
+
+.dmb-plan-target__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ss-accent-text);
+}

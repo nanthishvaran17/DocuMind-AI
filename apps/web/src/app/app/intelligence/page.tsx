@@ -23,6 +23,7 @@ import type {
   SemanticSearchHit,
 } from "@documind/types";
 import { AppShell } from "@/components/AppShell";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/providers";
 import { apiRequest, ensureAuthSession } from "@/lib/api";
 import { usePreferencesStore } from "@/stores/preferences-store";
@@ -47,6 +48,11 @@ export default function IntelligencePage() {
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [indexingDocId, setIndexingDocId] = useState<string | null>(null);
+  const [pendingDeleteThread, setPendingDeleteThread] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [deletingThread, setDeletingThread] = useState(false);
 
   useEffect(() => {
     ensureAuthSession().catch(() => undefined);
@@ -337,7 +343,9 @@ export default function IntelligencePage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteThread(thread.id)}
+                          onClick={() =>
+                            setPendingDeleteThread({ id: thread.id, title: thread.title })
+                          }
                           aria-label="Delete thread"
                           className="p-1 text-[var(--dm-muted)] hover:text-red-400"
                         >
@@ -530,6 +538,25 @@ export default function IntelligencePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDeleteThread !== null}
+        title={`Are you sure you want to delete conversation "${pendingDeleteThread?.title ?? ""}"?`}
+        description="All questions and cited answers in this Q&A thread will be permanently deleted."
+        confirmLabel="Yes, Delete Thread"
+        loading={deletingThread}
+        onCancel={() => setPendingDeleteThread(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteThread) return;
+          setDeletingThread(true);
+          try {
+            await handleDeleteThread(pendingDeleteThread.id);
+            setPendingDeleteThread(null);
+          } finally {
+            setDeletingThread(false);
+          }
+        }}
+      />
     </AppShell>
   );
 }

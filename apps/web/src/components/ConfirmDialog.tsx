@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 
 export interface ConfirmDialogProps {
@@ -11,6 +11,7 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: "danger" | "warning";
   loading?: boolean;
+  requireConfirmText?: string;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
@@ -23,11 +24,17 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   variant = "danger",
   loading = false,
+  requireConfirmText,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const [typedText, setTypedText] = useState("");
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setTypedText("");
+      return;
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !loading) {
         onCancel();
@@ -40,6 +47,9 @@ export function ConfirmDialog({
   if (!open) return null;
 
   const isDanger = variant === "danger";
+  const textMatched =
+    !requireConfirmText ||
+    typedText.trim().toUpperCase() === requireConfirmText.trim().toUpperCase();
 
   return (
     <div
@@ -84,6 +94,22 @@ export function ConfirmDialog({
           </button>
         </div>
 
+        {requireConfirmText && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-red-400 font-medium">
+              Type <span className="font-mono font-bold">{requireConfirmText}</span> below to confirm:
+            </p>
+            <input
+              type="text"
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              placeholder={requireConfirmText}
+              className="dm-input w-full px-3 py-2 text-sm font-mono"
+              autoFocus
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-2 pt-1">
           <button
             type="button"
@@ -95,7 +121,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            disabled={loading}
+            disabled={loading || !textMatched}
             onClick={() => void onConfirm()}
             className={`px-4 py-2 text-xs font-semibold rounded-xl text-white inline-flex items-center gap-1.5 disabled:opacity-50 transition-colors ${
               isDanger

@@ -1,0 +1,65 @@
+/* DocuMind AI look tokens mapped onto stageshow */
+.look-documind .ss-stage {
+  --ss-accent: #6366f1;
+  --ss-accent-2: #8b5cf6;
+  --ss-accent-soft: rgba(99, 102, 241, 0.12);
+  --ss-accent-text: #4f46e5;
+  --ss-success: #10b981;
+  --ss-success-soft: rgba(16, 185, 129, 0.12);
+  --ss-success-text: #047857;
+  --ss-warning: #f59e0b;
+  --ss-warning-soft: rgba(245, 158, 11, 0.14);
+  --ss-warning-text: #b45309;
+  --ss-danger: #ef4444;
+  --ss-font: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --ss-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ss-radius-sm: 6px;
+  --ss-radius-md: 8px;
+  --ss-radius-lg: 12px;
+  --ss-radius-window: 14px;
+  --ss-control: 34px;
+  --ss-row: 28px;
+  --ss-canvas: #fafafb;
+  --ss-surface: #ffffff;
+  --ss-chrome: #f3f4f8;
+  --ss-well: #f1f3f9;
+  --ss-raised: #ffffff;
+  --ss-line: rgba(20, 22, 27, 0.1);
+  --ss-line-faint: rgba(20, 22, 27, 0.06);
+  --ss-text-strong: #14161b;
+  --ss-text: #1f2430;
+  --ss-text-faint: #667085;
+  --ss-icon: #475467;
+  --ss-icon-faint: #98a2b3;
+}
+
+.dark .look-documind .ss-stage {
+  --ss-accent: #818cf8;
+  --ss-accent-2: #a78bfa;
+  --ss-accent-soft: rgba(129, 140, 248, 0.16);
+  --ss-accent-text: #c7d2fe;
+  --ss-success-text: #34d399;
+  --ss-warning-text: #fbbf24;
+  --ss-canvas: #0f1219;
+  --ss-surface: #151923;
+  --ss-chrome: #181d29;
+  --ss-well: #10141d;
+  --ss-raised: #1c2230;
+  --ss-line: rgba(232, 234, 240, 0.11);
+  --ss-line-faint: rgba(232, 234, 240, 0.06);
+  --ss-text-strong: #f3f5fa;
+  --ss-text: #e8eaf0;
+  --ss-text-faint: #8b93a7;
+  --ss-icon: #98a2b3;
+  --ss-icon-faint: #667085;
+  --ss-ink-1: rgba(255, 255, 255, 0.06);
+  --ss-ink-2: rgba(255, 255, 255, 0.1);
+  --ss-ink-3: rgba(255, 255, 255, 0.16);
+  --ss-ink-4: rgba(255, 255, 255, 0.24);
+  --ss-ink-5: rgba(255, 255, 255, 0.34);
+  --ss-popover-bg: #1c2230;
+  --ss-popover-shadow: 0 20px 44px -14px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --ss-shadow-hero: 0 26px 60px -18px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --ss-shadow-satellite: 0 18px 40px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.09);
+  --ss-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}

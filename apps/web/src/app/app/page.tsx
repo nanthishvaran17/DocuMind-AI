@@ -135,6 +135,7 @@ export default function DashboardPage() {
     queryKey: ["documents", selectedFolder, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
+      params.set("limit", "50");
       if (selectedFolder) params.set("folder_id", selectedFolder);
       if (searchQuery.trim()) params.set("q", searchQuery.trim());
       const res = await apiRequest<DocumentItem[]>(`/documents?${params.toString()}`, {

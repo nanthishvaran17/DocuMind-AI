@@ -1,0 +1,345 @@
+.dmh-wrap {
+  width: 100%;
+  max-width: 984px;
+  margin: 0 auto;
+}
+
+.dmh-stage .ss-stage {
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--ss-well);
+  border: 1px solid var(--ss-line);
+}
+
+/* Main window: pinned top-left (32px gutter), bleeds past right and bottom */
+.dmh-window {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  width: 1020px;
+  height: 440px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.dmh-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 12px 16px;
+  gap: 14px;
+}
+
+.dmh-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--ss-text-strong);
+}
+
+.dmh-brand__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ss-text-strong);
+}
+
+.dmh-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dmh-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--ss-radius-sm);
+}
+
+.dmh-nav__item--active {
+  background: var(--ss-accent-soft);
+}
+
+.dmh-nav__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ss-accent-text);
+}
+
+.dmh-sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px 0;
+  border-top: 1px solid var(--ss-line-faint);
+}
+
+/* Workspace body */
+.dmh-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 22px;
+  height: 100%;
+}
+
+.dmh-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ss-line-faint);
+}
+
+.dmh-doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dmh-doc__icon {
+  color: var(--ss-accent);
+  flex: none;
+}
+
+.dmh-doc__name {
+  font-family: var(--ss-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ss-text-strong);
+}
+
+.dmh-cmd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--ss-radius-md);
+  border: 1px solid var(--ss-line);
+  background: var(--ss-canvas);
+  color: var(--ss-text);
+  font-size: 12px;
+  font-weight: 500;
+  flex: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.dmh-cmd-btn[data-hover="true"],
+.dmh-cmd-btn[data-open="true"] {
+  border-color: var(--ss-accent);
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent-text);
+}
+
+.dmh-cmd-btn[data-pressed="true"] {
+  transform: scale(0.97);
+}
+
+.dmh-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 500px;
+}
+
+.dmh-section__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ss-text-faint);
+}
+
+.dmh-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dmh-version-slot {
+  padding-bottom: 2px;
+}
+
+.dmh-row {
+  padding: 10px 12px;
+  border-radius: var(--ss-radius-md);
+  border: 1px solid var(--ss-line-faint);
+  background: var(--ss-surface);
+}
+
+.dmh-row--v2 {
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.dmh-row--filler {
+  background: transparent;
+}
+
+.dmh-ver-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-family: var(--ss-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--ss-canvas);
+  color: var(--ss-text-faint);
+  border: 1px solid var(--ss-line);
+}
+
+.dmh-ver-tag--accent {
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent-text);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.dmh-row__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ss-text-strong);
+}
+
+.dmh-row__sub {
+  font-family: var(--ss-mono);
+  font-size: 11px;
+  color: var(--ss-text-faint);
+}
+
+/* Command Popover */
+.dmh-popover {
+  position: absolute;
+  top: 76px;
+  left: 330px;
+  width: 360px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 6;
+}
+
+.dmh-popover__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ss-accent-text);
+}
+
+.dmh-popover__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ss-text-strong);
+}
+
+.dmh-popover__field {
+  font-family: var(--ss-mono);
+}
+
+.dmh-popover__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dmh-popover__hint {
+  font-size: 11px;
+  color: var(--ss-text-faint);
+}
+
+/* Satellite Receipt straddling bottom-right */
+.dmh-receipt {
+  position: absolute;
+  right: 28px;
+  bottom: 24px;
+  width: 268px;
+  padding: 14px 16px;
+  border-radius: var(--ss-radius-lg);
+  background: var(--ss-raised);
+  border: 1px solid var(--ss-line);
+  box-shadow: var(--ss-shadow-satellite);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 4;
+}
+
+.dmh-receipt__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dmh-receipt__status {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ss-text);
+}
+
+.dmh-receipt__status--ok {
+  color: var(--ss-success-text);
+  font-weight: 600;
+}
+
+.dmh-receipt__metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dmh-receipt__kb {
+  font-family: var(--ss-mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ss-text-strong);
+}
+
+/* Compact phone composition (358 x 390) */
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-window {
+  top: 16px;
+  left: 16px;
+  width: 390px;
+  height: 310px;
+}
+
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-body {
+  padding: 14px;
+  gap: 12px;
+}
+
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-doc__name {
+  font-size: 11.5px;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-popover {
+  top: 72px;
+  left: 24px;
+  width: 310px;
+}
+
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-receipt {
+  right: 16px;
+  left: 16px;
+  bottom: 16px;
+  width: auto;
+  padding: 12px 14px;
+  gap: 8px;
+}
+
+.dmh-stage .ss-stage[data-layout="compact"] .dmh-receipt__kb {
+  font-size: 20px;
+}

@@ -12,6 +12,19 @@ interface PdfViewerProps {
   onPageCount?: (count: number) => void;
 }
 
+const PDF_BYTES_CACHE_MAX = 6;
+const pdfBytesCache = new Map<string, Uint8Array>();
+
+function cachePdfBytes(key: string, bytes: Uint8Array): void {
+  if (pdfBytesCache.has(key)) {
+    pdfBytesCache.delete(key);
+  } else if (pdfBytesCache.size >= PDF_BYTES_CACHE_MAX) {
+    const oldestKey = pdfBytesCache.keys().next().value;
+    if (oldestKey) pdfBytesCache.delete(oldestKey);
+  }
+  pdfBytesCache.set(key, bytes);
+}
+
 export function PdfViewer({
   documentId,
   versionNo,
@@ -20,6 +33,9 @@ export function PdfViewer({
   onPageCount,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const onPageCountRef = useRef(onPageCount);
+  onPageCountRef.current = onPageCount;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<import("pdfjs-dist").PDFDocumentProxy | null>(null);
@@ -27,24 +43,30 @@ export function PdfViewer({
   useEffect(() => {
     let cancelled = false;
     let activeDoc: import("pdfjs-dist").PDFDocumentProxy | null = null;
+    const cacheKey = `${documentId}:v${versionNo}`;
 
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const blob = await fetchAuthorizedBlob(`/documents/${documentId}/preview?v=${versionNo}`);
-        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let bytes = pdfBytesCache.get(cacheKey);
+        if (!bytes) {
+          const blob = await fetchAuthorizedBlob(`/documents/${documentId}/preview?v=${versionNo}`);
+          bytes = new Uint8Array(await blob.arrayBuffer());
+          cachePdfBytes(cacheKey, bytes);
+        }
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const doc = await pdfjs.getDocument({ data: bytes }).promise;
+        // Pass a copy because pdf.js may transfer/detach the underlying buffer to its worker
+        const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
         if (cancelled) {
           await doc.destroy();
           return;
         }
         activeDoc = doc;
         setPdfDoc(doc);
-        onPageCount?.(doc.numPages);
+        onPageCountRef.current?.(doc.numPages);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -65,10 +87,12 @@ export function PdfViewer({
         activeDoc.destroy().catch(() => undefined);
       }
     };
-  }, [documentId, versionNo, onPageCount]);
+  }, [documentId, versionNo]);
 
   useEffect(() => {
     let cancelled = false;
+    let activeRenderTask: import("pdfjs-dist").RenderTask | null = null;
+
     async function renderPage() {
       if (!pdfDoc || !canvasRef.current) return;
       const safePage = Math.max(1, Math.min(currentPage, pdfDoc.numPages));
@@ -86,13 +110,25 @@ export function PdfViewer({
       canvas.style.height = `${Math.floor(viewport.height)}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      activeRenderTask = page.render({ canvasContext: ctx, viewport });
+      await activeRenderTask.promise;
     }
+
     renderPage().catch((err) => {
-      if (!cancelled) setError(err instanceof Error ? err.message : "Failed to render page.");
+      if (!cancelled && err?.name !== "RenderingCancelledException") {
+        setError(err instanceof Error ? err.message : "Failed to render page.");
+      }
     });
+
     return () => {
       cancelled = true;
+      if (activeRenderTask) {
+        try {
+          activeRenderTask.cancel();
+        } catch {
+          // ignore
+        }
+      }
     };
   }, [pdfDoc, currentPage, zoom]);
 

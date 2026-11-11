@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -37,7 +38,11 @@ import { useT } from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePreferencesStore } from "@/stores/preferences-store";
 import { apiRequest } from "@/lib/api";
-import { CommandPalette } from "@/components/CommandPalette";
+
+const CommandPalette = dynamic(
+  () => import("@/components/CommandPalette").then((m) => m.CommandPalette),
+  { ssr: false }
+);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -109,9 +114,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const allNavItems = navSections.flatMap((s) => s.items);
 
   const summaryDocsQuery = useQuery({
-    queryKey: ["shell-docs-summary", Boolean(token)],
+    queryKey: ["documents", null, ""],
     enabled: Boolean(token),
-    staleTime: 20_000,
+    staleTime: 45_000,
     queryFn: async () => {
       const res = await apiRequest<DocumentItem[]>("/documents?limit=50");
       return res.data ?? [];
@@ -119,13 +124,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   const jobsQuery = useQuery({
-    queryKey: ["shell-recent-jobs", Boolean(token)],
+    queryKey: ["dashboard-jobs", Boolean(token)],
     enabled: Boolean(token),
-    staleTime: 10_000,
+    staleTime: 25_000,
     queryFn: async () => {
       const res = await apiRequest<JobRecord[]>("/jobs");
-      return (res.data ?? []).slice(0, 6);
+      return res.data ?? [];
     },
+    select: (rows) => rows.slice(0, 6),
   });
 
   const totalUsedBytes = (summaryDocsQuery.data ?? []).reduce((sum, d) => sum + d.size_bytes, 0);

@@ -85,12 +85,18 @@ async def populate_pdf_version_assets(
     thumbs = await asyncio.to_thread(pdf_engine.render_page_thumbnails, pdf_bytes, 50, 260)
     thumb_map = dict(thumbs)
 
+    upload_tasks = []
+    page_keys: dict[int, str] = {}
     for p in inspection.pages:
-        thumb_key: str | None = None
         if p.page_no in thumb_map:
             thumb_key = f"thumbnails/{version.document_id}/{version.id}/page_{p.page_no}.png"
-            await storage.put_bytes(thumb_key, thumb_map[p.page_no], "image/png")
+            page_keys[p.page_no] = thumb_key
+            upload_tasks.append(storage.put_bytes(thumb_key, thumb_map[p.page_no], "image/png"))
 
+    if upload_tasks:
+        await asyncio.gather(*upload_tasks)
+
+    for p in inspection.pages:
         db.add(
             DocumentPage(
                 version_id=version.id,
@@ -98,7 +104,7 @@ async def populate_pdf_version_assets(
                 width=p.width,
                 height=p.height,
                 rotation=p.rotation,
-                thumbnail_key=thumb_key,
+                thumbnail_key=page_keys.get(p.page_no),
             )
         )
     return inspection.page_count, False

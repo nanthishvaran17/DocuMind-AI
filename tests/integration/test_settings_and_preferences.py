@@ -1,37 +1,64 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
+import httpx
 import pytest
+import pytest_asyncio
+from app.core.config import get_settings
+from app.db import session as db_session
+from app.db.models import Base
+from app.main import app
+from app.services import agent_executor, job_runner
+from app.services import storage as storage_service
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
-@pytest.fixture()
-async def settings_client(tmp_path: Path):
+@pytest_asyncio.fixture()
+async def settings_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db_file = tmp_path / "test_settings.db"
     storage_dir = tmp_path / "storage"
-    os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{db_file.as_posix()}"
-    os.environ["LOCAL_STORAGE_PATH"] = str(storage_dir)
-    os.environ["STORAGE_BACKEND"] = "local"
-    os.environ["TASK_RUNNER"] = "inline"
-    os.environ["CLAMAV_MODE"] = "disabled_dev"
+    storage_dir.mkdir(parents=True, exist_ok=True)
 
-    from app.core.config import get_settings
-    from app.db.models import Base
-    from app.db.session import engine
-    from app.main import create_app
-
-    get_settings.cache_clear()
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_file.as_posix()}", future=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    app = create_app()
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+    monkeypatch.setattr(db_session, "AsyncSessionLocal", session_factory)
+    monkeypatch.setattr(agent_executor, "AsyncSessionLocal", session_factory)
+    if hasattr(job_runner, "AsyncSessionLocal"):
+        monkeypatch.setattr(job_runner, "AsyncSessionLocal", session_factory)
+
+    monkeypatch.setattr(
+        storage_service,
+        "_adapter",
+        storage_service.LocalStorageAdapter(str(storage_dir)),
+    )
+    settings = get_settings()
+    monkeypatch.setattr(settings, "local_storage_path", str(storage_dir))
+
+    async def _override_get_db():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[db_session.get_db] = _override_get_db
+
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
+
+    app.dependency_overrides.clear()
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -172,3 +199,4 @@ async def test_guest_mode_data_controls(settings_client: AsyncClient) -> None:
     purge = await settings_client.delete("/api/v1/users/me/documents", headers=headers)
     assert purge.status_code == 200
     assert purge.json()["data"]["deleted_documents"] == 1
+

@@ -28,7 +28,7 @@ from app.services.llm import (
 )
 from app.services.storage import get_storage
 from app.services.text_extractor import ExtractedSegment, extract_document_segments
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -272,27 +272,44 @@ async def semantic_search(
     if not docs:
         return []
 
-    ver_ids: list[str] = []
     doc_by_id = {d.id: d for d in docs}
-    for d in docs:
-        ver = (
+    doc_ver_pairs = [(d.id, d.current_version_no) for d in docs]
+    current_versions = list(
+        (
             await db.execute(
                 select(DocumentVersion).where(
-                    DocumentVersion.document_id == d.id,
-                    DocumentVersion.version_no == d.current_version_no,
+                    tuple_(DocumentVersion.document_id, DocumentVersion.version_no).in_(
+                        doc_ver_pairs
+                    )
                 )
             )
-        ).scalar_one_or_none()
-        if ver:
-            ver_ids.append(ver.id)
-            if not d.mime_type.startswith("image/"):
-                try:
-                    await ensure_document_indexed(db, d, ver, force=False)
-                except Exception:
-                    logger.warning("Auto-index skipped for doc %s", d.id)
-
+        )
+        .scalars()
+        .all()
+    )
+    ver_by_doc_id = {v.document_id: v for v in current_versions}
+    ver_ids = [v.id for v in current_versions]
     if not ver_ids:
         return []
+
+    indexed_ver_ids = set(
+        (
+            await db.execute(
+                select(DocumentChunk.version_id)
+                .where(DocumentChunk.version_id.in_(ver_ids))
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for d in docs:
+        ver = ver_by_doc_id.get(d.id)
+        if ver and ver.id not in indexed_ver_ids and not d.mime_type.startswith("image/"):
+            try:
+                await ensure_document_indexed(db, d, ver, force=False)
+            except Exception:
+                logger.warning("Auto-index skipped for doc %s", d.id)
 
     bind = db.get_bind()
     is_pg = bind is not None and bind.dialect.name == "postgresql"

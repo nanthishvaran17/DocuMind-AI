@@ -142,27 +142,57 @@ export async function apiRequest<T>(
   return payload;
 }
 
+const THUMB_BLOB_CACHE_MAX = 80;
+const thumbBlobCache = new Map<string, Blob>();
+const inflightBlobRequests = new Map<string, Promise<Blob>>();
+
 export async function fetchAuthorizedBlob(path: string): Promise<Blob> {
-  const token = await ensureAuthSession();
-  let res = await fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: "include",
-  });
-  if (res.status === 401) {
-    let freshToken = await tryRefreshSession();
-    if (!freshToken) {
-      useAuthStore.getState().clearSession();
-      freshToken = await ensureAuthSession();
-    }
-    res = await fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${freshToken}` },
+  const isThumbnail = path.includes("/thumbnail");
+  if (isThumbnail) {
+    const cached = thumbBlobCache.get(path);
+    if (cached) return cached;
+    const inflight = inflightBlobRequests.get(path);
+    if (inflight) return inflight;
+  }
+
+  const run = async (): Promise<Blob> => {
+    const token = await ensureAuthSession();
+    let res = await fetch(`${API_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
     });
-  }
-  if (!res.ok) {
-    throw new ApiError(`Failed to load file (${res.status})`, res.status);
-  }
-  return res.blob();
+    if (res.status === 401) {
+      let freshToken = await tryRefreshSession();
+      if (!freshToken) {
+        useAuthStore.getState().clearSession();
+        freshToken = await ensureAuthSession();
+      }
+      res = await fetch(`${API_BASE}${path}`, {
+        headers: { Authorization: `Bearer ${freshToken}` },
+        credentials: "include",
+      });
+    }
+    if (!res.ok) {
+      throw new ApiError(`Failed to load file (${res.status})`, res.status);
+    }
+    const blob = await res.blob();
+    if (isThumbnail) {
+      if (thumbBlobCache.size >= THUMB_BLOB_CACHE_MAX) {
+        const oldest = thumbBlobCache.keys().next().value;
+        if (oldest) thumbBlobCache.delete(oldest);
+      }
+      thumbBlobCache.set(path, blob);
+    }
+    return blob;
+  };
+
+  if (!isThumbnail) return run();
+
+  const promise = run().finally(() => {
+    inflightBlobRequests.delete(path);
+  });
+  inflightBlobRequests.set(path, promise);
+  return promise;
 }
 
 export async function pollOrStreamJob(

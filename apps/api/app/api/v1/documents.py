@@ -44,7 +44,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -379,19 +379,25 @@ async def list_documents(
     has_more = len(docs) > limit
     docs = docs[:limit]
 
-    items: list[dict] = []
-    for d in docs:
-        ver = (
+    ver_by_doc: dict[str, DocumentVersion] = {}
+    if docs:
+        doc_ver_pairs = [(d.id, d.current_version_no) for d in docs]
+        versions = (
             await db.execute(
                 select(DocumentVersion)
                 .where(
-                    DocumentVersion.document_id == d.id,
-                    DocumentVersion.version_no == d.current_version_no,
+                    tuple_(DocumentVersion.document_id, DocumentVersion.version_no).in_(
+                        doc_ver_pairs
+                    )
                 )
                 .options(selectinload(DocumentVersion.pages))
             )
-        ).scalar_one_or_none()
-        items.append(_doc_to_out(d, latest_ver=ver))
+        ).scalars().all()
+        ver_by_doc = {v.document_id: v for v in versions}
+
+    items: list[dict] = [
+        _doc_to_out(d, latest_ver=ver_by_doc.get(d.id)) for d in docs
+    ]
 
     next_cursor = str(offset + limit) if has_more else None
     return ok_response(
@@ -582,13 +588,16 @@ async def preview_document(
     if not ver:
         raise HTTPException(status_code=404, detail="Document version not found.")
     data = await get_storage().get_bytes(ver.storage_key)
+    headers = {
+        "Content-Disposition": f'inline; filename="{doc.name}"',
+        "X-Content-Type-Options": "nosniff",
+    }
+    if v is not None:
+        headers["Cache-Control"] = "private, max-age=3600, immutable"
     return Response(
         content=data,
         media_type=ver.mime_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{doc.name}"',
-            "X-Content-Type-Options": "nosniff",
-        },
+        headers=headers,
     )
 
 
@@ -653,7 +662,10 @@ async def get_page_thumbnail(
     if not page or not page.thumbnail_key:
         raise HTTPException(status_code=404, detail="Thumbnail not found.")
     png_bytes = await get_storage().get_bytes(page.thumbnail_key)
-    return Response(content=png_bytes, media_type="image/png")
+    headers = {"Cache-Control": "private, max-age=3600, immutable"} if v is not None else {
+        "Cache-Control": "private, max-age=300"
+    }
+    return Response(content=png_bytes, media_type="image/png", headers=headers)
 
 
 @router.get("/{document_id}/history")

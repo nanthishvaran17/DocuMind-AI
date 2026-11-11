@@ -2,37 +2,64 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   ArrowLeft,
   ArrowLeftRight,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Download,
+  ExternalLink,
   FileText,
   History,
   Layers,
   Loader2,
   Lock,
   Minimize2,
+  RefreshCw,
   RotateCw,
   ScanText,
+  Send,
   Stamp,
   Trash2,
   Unlock,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import type { DocumentDetailOut, JobRecord } from "@documind/types";
-import { COMPRESS_TARGET_PRESETS, formatBytes } from "@documind/shared";
+import type {
+  ConversionTargetFormat,
+  DocumentDetailOut,
+  DocumentIndexStatus,
+  DocumentSummaryResponse,
+  JobRecord,
+  QaAskResponse,
+  QaMessageItem,
+} from "@documind/types";
+import { COMPRESS_TARGET_PRESETS, CONVERSION_TARGETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PdfViewer } from "@/components/PdfViewer";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";
+import { usePreferencesStore } from "@/stores/preferences-store";
+
+const CONVERSION_TARGET_LABELS: Record<ConversionTargetFormat, string> = {
+  pdf: "Portable Document",
+  docx: "Word Document",
+  xlsx: "Excel Workbook",
+  pptx: "PowerPoint Deck",
+  md: "Markdown",
+  txt: "Plain Text",
+  html: "Web Page",
+  csv: "CSV Tables",
+  json: "Structured JSON",
+  png: "PNG Images",
+  jpg: "JPG Images",
+};
 
 interface HistoryEntry {
   id: string;
@@ -47,11 +74,14 @@ export default function WorkspacePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const aiResponseStyle = usePreferencesStore((s) => s.ai_response_style);
+  const customInstructions = usePreferencesStore((s) => s.custom_instructions);
+  const defaultTopK = usePreferencesStore((s) => s.default_top_k);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1.1);
   const [activeVersionNo, setActiveVersionNo] = useState<number | null>(null);
-  const [rightTab, setRightTab] = useState<"tools" | "versions" | "history">("tools");
+  const [rightTab, setRightTab] = useState<"tools" | "ask" | "convert" | "versions" | "history">("tools");
   const [activeJob, setActiveJob] = useState<Partial<JobRecord> | null>(null);
   const [thumbUrls, setThumbUrls] = useState<Record<number, string>>({});
   const [nonPdfImageUrl, setNonPdfImageUrl] = useState<string | null>(null);
@@ -65,6 +95,20 @@ export default function WorkspacePage() {
   const [pdfPassword, setPdfPassword] = useState("");
   const [pageListSpec, setPageListSpec] = useState("1");
   const [pendingDeletePages, setPendingDeletePages] = useState<number[] | null>(null);
+
+  // Phase 2 Ask AI & Summarize state
+  const [qaQuestion, setQaQuestion] = useState("");
+  const [qaAsking, setQaAsking] = useState(false);
+  const [qaThreadId, setQaThreadId] = useState<string | null>(null);
+  const [qaMessages, setQaMessages] = useState<QaMessageItem[]>([]);
+  const [summaryData, setSummaryData] = useState<DocumentSummaryResponse | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+
+  // Phase 3 Conversion state
+  const [convertTarget, setConvertTarget] = useState<ConversionTargetFormat>("docx");
+  const [pptxMode, setPptxMode] = useState<"hybrid" | "editable" | "visual">("hybrid");
+  const [convertedDocId, setConvertedDocId] = useState<string | null>(null);
 
   const docQuery = useQuery({
     queryKey: ["document", docId, activeVersionNo],
@@ -86,30 +130,61 @@ export default function WorkspacePage() {
     },
   });
 
+  const indexStatusQuery = useQuery({
+    queryKey: ["document-index-status", docId],
+    enabled: rightTab === "ask",
+    queryFn: async () => {
+      const res = await apiRequest<DocumentIndexStatus>(`/ai/documents/${docId}/index`);
+      return res.data ?? null;
+    },
+  });
+
+  const supportedConversionsQuery = useQuery({
+    queryKey: ["supported-conversions"],
+    enabled: rightTab === "convert",
+    queryFn: async () => {
+      const res = await apiRequest<{
+        matrix: Record<string, ConversionTargetFormat[]>;
+        mime_types: Record<string, string>;
+      }>("/tools/convert/supported");
+      return res.data ?? null;
+    },
+  });
+
   const doc = docQuery.data;
   const effectiveVersion = activeVersionNo ?? doc?.current_version_no ?? 1;
   const totalPages = pdfPageCount ?? doc?.page_count ?? 1;
+
+  const handlePdfPageCount = useCallback((cnt: number) => setPdfPageCount(cnt), []);
 
   useEffect(() => {
     const revoked: string[] = [];
     let cancelled = false;
     async function loadThumbs() {
       if (!doc || !doc.pages.length) return;
+      const pages = doc.pages.slice(0, 20).filter((p) => Boolean(p.thumbnail_url));
+      const CONCURRENCY = 6;
       const next: Record<number, string> = {};
-      for (const p of doc.pages.slice(0, 20)) {
-        if (!p.thumbnail_url) continue;
-        try {
-          const cleanPath = p.thumbnail_url.replace(/^\/api\/v1/, "");
-          const blob = await fetchAuthorizedBlob(cleanPath);
-          if (cancelled) return;
-          const url = URL.createObjectURL(blob);
-          revoked.push(url);
-          next[p.page_no] = url;
-        } catch {
-          // skip failed thumbnail
-        }
+      for (let i = 0; i < pages.length; i += CONCURRENCY) {
+        if (cancelled) return;
+        const batch = pages.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          batch.map(async (p) => {
+            if (!p.thumbnail_url) return;
+            try {
+              const cleanPath = p.thumbnail_url.replace(/^\/api\/v1/, "");
+              const blob = await fetchAuthorizedBlob(cleanPath);
+              if (cancelled) return;
+              const url = URL.createObjectURL(blob);
+              revoked.push(url);
+              next[p.page_no] = url;
+            } catch {
+              // skip failed thumbnail
+            }
+          })
+        );
+        if (!cancelled) setThumbUrls({ ...next });
       }
-      if (!cancelled) setThumbUrls(next);
     }
     loadThumbs();
     return () => {
@@ -181,6 +256,7 @@ export default function WorkspacePage() {
         await queryClient.invalidateQueries({ queryKey: ["document", docId] });
         await queryClient.invalidateQueries({ queryKey: ["document-history", docId] });
         if (done.output_document_id && done.output_document_id !== docId) {
+          setConvertedDocId(done.output_document_id);
           pushToast({
             title: `${label} complete`,
             description: "Created new output document.",
@@ -228,6 +304,114 @@ export default function WorkspacePage() {
     pushToast({ title: "Document permanently deleted", variant: "info" });
     router.push("/app");
   };
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    try {
+      await apiRequest(`/ai/documents/${docId}/index`, {
+        method: "POST",
+        body: JSON.stringify({ force: true }),
+      });
+      await indexStatusQuery.refetch();
+      pushToast({ title: "Document embeddings refreshed", variant: "success" });
+    } catch (err) {
+      pushToast({
+        title: "Indexing failed",
+        description: err instanceof Error ? err.message : "Could not index document.",
+        variant: "error",
+      });
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    setSummarizing(true);
+    try {
+      const res = await apiRequest<DocumentSummaryResponse>(`/ai/documents/${docId}/summarize`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      if (res.data) setSummaryData(res.data);
+    } catch (err) {
+      pushToast({
+        title: "Summarization failed",
+        description: err instanceof Error ? err.message : "Could not summarize document.",
+        variant: "error",
+      });
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
+  const handleAskDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!qaQuestion.trim()) return;
+    const questionText = qaQuestion.trim();
+    setQaQuestion("");
+    setQaAsking(true);
+    setQaMessages((prev) => [
+      ...prev,
+      {
+        id: `local-u-${Date.now()}`,
+        role: "user",
+        content: questionText,
+        citations: [],
+        model_used: null,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    try {
+      const res = await apiRequest<QaAskResponse>("/ai/qa/ask", {
+        method: "POST",
+        body: JSON.stringify({
+          question: questionText,
+          document_id: docId,
+          thread_id: qaThreadId || undefined,
+          top_k: defaultTopK,
+          response_style: aiResponseStyle,
+          custom_instructions: customInstructions || undefined,
+        }),
+      });
+      if (res.data) {
+        setQaThreadId(res.data.thread_id);
+        setQaMessages((prev) => [
+          ...prev,
+          {
+            id: `local-a-${Date.now()}`,
+            role: "assistant",
+            content: res.data!.answer,
+            citations: res.data!.citations,
+            model_used: res.data!.model_used,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        await indexStatusQuery.refetch();
+      }
+    } catch (err) {
+      pushToast({
+        title: "Q&A failed",
+        description: err instanceof Error ? err.message : "Could not answer question.",
+        variant: "error",
+      });
+    } finally {
+      setQaAsking(false);
+    }
+  };
+
+  const sourceExt = (doc?.name.split(".").pop() || "pdf").toLowerCase();
+  const availableConversionTargets = useMemo<ConversionTargetFormat[]>(() => {
+    const matrix = supportedConversionsQuery.data?.matrix;
+    if (matrix && matrix[sourceExt]) return matrix[sourceExt];
+    const fallback = CONVERSION_TARGETS[sourceExt] ?? ["pdf", "docx", "xlsx", "pptx", "md", "txt"];
+    return fallback.filter((fmt) => fmt !== sourceExt);
+  }, [supportedConversionsQuery.data, sourceExt]);
+
+  useEffect(() => {
+    if (availableConversionTargets.length > 0 && !availableConversionTargets.includes(convertTarget)) {
+      setConvertTarget(availableConversionTargets[0]);
+    }
+  }, [availableConversionTargets, convertTarget]);
 
   if (docQuery.isLoading) {
     return (
@@ -429,7 +613,7 @@ export default function WorkspacePage() {
                     versionNo={effectiveVersion}
                     currentPage={currentPage}
                     zoom={zoom}
-                    onPageCount={(cnt) => setPdfPageCount(cnt)}
+                    onPageCount={handlePdfPageCount}
                   />
                 ) : nonPdfLoading ? (
                   <div className="flex items-center justify-center gap-2 h-full text-sm text-[var(--dm-muted)]">
@@ -452,8 +636,34 @@ export default function WorkspacePage() {
                     </pre>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full px-6 text-center text-sm text-[var(--dm-muted)]">
-                    Previewing Office files directly in browser arrives with Phase 2 conversion. Use Export to download.
+                  <div className="flex flex-col items-center justify-center h-full px-6 text-center text-sm text-[var(--dm-muted)] gap-3">
+                    <p>
+                      Office files ({doc.name}) can be converted to PDF for page-by-page preview or opened in the Convert tab.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          runToolJob(
+                            "/tools/convert",
+                            { document_id: doc.id, target_format: "pdf" },
+                            "Convert to PDF"
+                          )
+                        }
+                        className="dm-primary-btn px-3.5 py-2 text-xs font-medium inline-flex items-center gap-1.5"
+                      >
+                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                        <span>Convert to PDF to Preview</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRightTab("ask")}
+                        className="px-3.5 py-2 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-surface)] text-xs font-medium hover:border-indigo-500 inline-flex items-center gap-1.5"
+                      >
+                        <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+                        <span>Ask AI / Summarize</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -465,18 +675,18 @@ export default function WorkspacePage() {
             <Panel defaultSize={28} minSize={20} maxSize={42}>
               <div className="h-full flex flex-col border-l border-[var(--dm-border)] bg-[var(--dm-surface)]">
                 <div className="p-2 border-b border-[var(--dm-border)]">
-                  <div className="grid grid-cols-3 p-1 rounded-xl bg-[var(--dm-subtle)] border border-[var(--dm-border)] text-xs font-medium">
-                    {(["tools", "versions", "history"] as const).map((tab) => (
+                  <div className="grid grid-cols-5 p-1 rounded-xl bg-[var(--dm-subtle)] border border-[var(--dm-border)] text-[11px] font-medium">
+                    {(["tools", "ask", "convert", "versions", "history"] as const).map((tab) => (
                       <button
                         key={tab}
                         type="button"
                         onClick={() => setRightTab(tab)}
-                        className={`py-1.5 rounded-lg capitalize transition-all ${rightTab === tab
+                        className={`py-1.5 rounded-lg capitalize transition-all truncate px-1 ${rightTab === tab
                           ? "bg-[var(--dm-surface)] text-indigo-500 dark:text-indigo-300 shadow-xs font-semibold"
                           : "text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
                           }`}
                       >
-                        {tab}
+                        {tab === "ask" ? "Ask AI" : tab}
                       </button>
                     ))}
                   </div>
@@ -763,6 +973,221 @@ export default function WorkspacePage() {
                         </div>
                       </div>
                     </>
+                  )}
+
+                  {rightTab === "ask" && (
+                    <div className="space-y-3.5">
+                      <div className="p-3 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+                            Vector Index
+                          </span>
+                          <span className="font-mono text-[10px] text-[var(--dm-muted)]">
+                            {indexStatusQuery.data
+                              ? `${indexStatusQuery.data.chunk_count} chunks (${indexStatusQuery.data.embedding_model ?? "indexed"})`
+                              : "Checking..."}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleReindex}
+                            disabled={reindexing}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)] hover:border-indigo-500 inline-flex items-center justify-center gap-1.5 font-medium disabled:opacity-50"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${reindexing ? "animate-spin" : ""}`} />
+                            <span>Re-index</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSummarize}
+                            disabled={summarizing}
+                            className="flex-1 dm-primary-btn py-1.5 px-2.5 inline-flex items-center justify-center gap-1.5 font-medium disabled:opacity-50"
+                          >
+                            {summarizing ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <BookOpen className="h-3 w-3" />
+                            )}
+                            <span>Summarize</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {summaryData && (
+                        <div className="p-3 rounded-xl border border-indigo-500/30 bg-indigo-500/5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-indigo-400">Summary</span>
+                            <span className="text-[10px] font-mono text-[var(--dm-muted)]">
+                              {summaryData.model_used}
+                            </span>
+                          </div>
+                          <p className="text-[var(--dm-text)] leading-relaxed whitespace-pre-wrap">
+                            {summaryData.summary}
+                          </p>
+                          {summaryData.key_points.length > 0 && (
+                            <ul className="space-y-1 text-[11px] text-[var(--dm-muted)] list-disc pl-4">
+                              {summaryData.key_points.map((kp, i) => (
+                                <li key={i}>{kp}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleAskDocument} className="space-y-2">
+                        <textarea
+                          rows={2}
+                          value={qaQuestion}
+                          onChange={(e) => setQaQuestion(e.target.value)}
+                          placeholder="Ask a question grounded in this document..."
+                          className="dm-input w-full px-2.5 py-2 text-xs resize-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={qaAsking || !qaQuestion.trim()}
+                          className="w-full dm-primary-btn py-2 inline-flex items-center justify-center gap-1.5 font-medium disabled:opacity-50"
+                        >
+                          {qaAsking ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )}
+                          <span>Ask with Citations</span>
+                        </button>
+                      </form>
+
+                      {qaMessages.length > 0 && (
+                        <div className="space-y-2.5">
+                          {qaMessages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`p-3 rounded-xl border space-y-2 ${
+                                msg.role === "user"
+                                  ? "border-[var(--dm-border)] bg-[var(--dm-bg)]"
+                                  : "border-indigo-500/25 bg-[var(--dm-subtle)]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-[10px] font-mono text-[var(--dm-muted)]">
+                                <span className="uppercase">{msg.role}</span>
+                                {msg.model_used && <span>{msg.model_used}</span>}
+                              </div>
+                              <p className="whitespace-pre-wrap leading-relaxed text-[var(--dm-text)]">
+                                {msg.content}
+                              </p>
+                              {msg.citations.length > 0 && (
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {msg.citations.map((cit) => (
+                                    <button
+                                      key={cit.index}
+                                      type="button"
+                                      onClick={() => {
+                                        if (cit.page_no && doc.mime_type === "application/pdf") {
+                                          setCurrentPage(cit.page_no);
+                                        }
+                                      }}
+                                      title={cit.snippet}
+                                      className="text-[10px] font-mono px-2 py-0.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20"
+                                    >
+                                      [{cit.index}] p.{cit.page_no ?? 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {rightTab === "convert" && (
+                    <div className="space-y-3.5">
+                      <div className="p-3.5 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <ArrowLeftRight className="h-3.5 w-3.5 text-sky-400" />
+                            Format Conversion
+                          </span>
+                          <span className="font-mono text-[10px] uppercase text-[var(--dm-muted)]">
+                            {sourceExt} source
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {availableConversionTargets.map((fmt) => {
+                            const label = CONVERSION_TARGET_LABELS[fmt] ?? fmt.toUpperCase();
+                            return (
+                              <button
+                                key={fmt}
+                                type="button"
+                                onClick={() => setConvertTarget(fmt)}
+                                className={`p-2 rounded-lg border text-left transition-all ${
+                                  convertTarget === fmt
+                                    ? "border-indigo-500 bg-indigo-500/15 text-indigo-300"
+                                    : "border-[var(--dm-border)] bg-[var(--dm-surface)] text-[var(--dm-muted)] hover:border-indigo-500/40"
+                                }`}
+                              >
+                                <div className="font-mono font-semibold uppercase">{fmt}</div>
+                                <div className="text-[10px] opacity-80 truncate">
+                                  {label}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {convertTarget === "pptx" && sourceExt === "pdf" && (
+                          <div className="space-y-1">
+                            <label className="text-[11px] text-[var(--dm-muted)] block">
+                              PPTX Slide Mode
+                            </label>
+                            <select
+                              value={pptxMode}
+                              onChange={(e) =>
+                                setPptxMode(e.target.value as "hybrid" | "editable" | "visual")
+                              }
+                              className="dm-input w-full px-2.5 py-1.5 text-xs"
+                            >
+                              <option value="hybrid">Hybrid (Recommended)</option>
+                              <option value="editable">Editable Text & Tables</option>
+                              <option value="visual">Visual Page Snapshots</option>
+                            </select>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConvertedDocId(null);
+                            runToolJob(
+                              "/tools/convert",
+                              {
+                                document_id: doc.id,
+                                target_format: convertTarget,
+                                pptx_mode: pptxMode,
+                              },
+                              `Convert to ${convertTarget.toUpperCase()}`
+                            );
+                          }}
+                          className="w-full dm-primary-btn py-2 font-medium inline-flex items-center justify-center gap-1.5"
+                        >
+                          <ArrowLeftRight className="h-3.5 w-3.5" />
+                          <span>Convert to {convertTarget.toUpperCase()}</span>
+                        </button>
+                      </div>
+
+                      {convertedDocId && (
+                        <div className="p-3 rounded-xl border border-emerald-500/35 bg-emerald-500/10 space-y-2">
+                          <p className="font-medium text-emerald-400">Converted file ready!</p>
+                          <Link
+                            href={`/app/workspace/${convertedDocId}`}
+                            className="w-full py-2 px-3 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-medium inline-flex items-center justify-center gap-1.5 hover:bg-emerald-500/30"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            <span>Open Converted Document</span>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {rightTab === "versions" && (

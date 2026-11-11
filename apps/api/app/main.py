@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1 import agent, ai_rag, auth, documents, folders, health, jobs, search, tools, users
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(GZipMiddleware, minimum_size=512)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

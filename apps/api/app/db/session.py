@@ -22,6 +22,9 @@ if _is_sqlite:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA cache_size=-16000")
         cursor.close()
 
 

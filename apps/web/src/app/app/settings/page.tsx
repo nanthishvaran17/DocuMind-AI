@@ -6,7 +6,6 @@ import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   ArrowRight,
   Bot,
   Check,
@@ -55,6 +54,7 @@ import {
   formatRelativeExpiry,
 } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/providers";
 import { apiRequest, ensureAuthSession } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -261,13 +261,16 @@ export default function SettingsPage() {
 
   // Data & Danger confirmations
   const [exportingData, setExportingData] = useState(false);
-  const [confirmClearChats, setConfirmClearChats] = useState(false);
-  const [clearingChats, setClearingChats] = useState(false);
-  const [confirmPurgeFiles, setConfirmPurgeFiles] = useState(false);
-  const [purgingFiles, setPurgingFiles] = useState(false);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [settingsConfirm, setSettingsConfirm] = useState<
+    | { type: "clear_chats" }
+    | { type: "purge_files" }
+    | { type: "reset_prefs" }
+    | { type: "revoke_session"; sessionId: string; label: string }
+    | { type: "revoke_others" }
+    | { type: "delete_account" }
+    | null
+  >(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -516,14 +519,12 @@ export default function SettingsPage() {
   };
 
   const handleClearQaHistory = async () => {
-    setClearingChats(true);
     try {
       await ensureAuthSession();
       const res = await apiRequest<{ deleted_threads: number }>("/users/me/qa-history", {
         method: "DELETE",
       });
       await queryClient.invalidateQueries({ queryKey: ["qa-threads"] });
-      setConfirmClearChats(false);
       pushToast({
         title: `Cleared ${res.data?.deleted_threads ?? 0} Q&A thread(s)`,
         variant: "info",
@@ -534,13 +535,10 @@ export default function SettingsPage() {
         description: err instanceof Error ? err.message : "Request failed.",
         variant: "error",
       });
-    } finally {
-      setClearingChats(false);
     }
   };
 
   const handlePurgeWorkspaceFiles = async () => {
-    setPurgingFiles(true);
     try {
       await ensureAuthSession();
       const res = await apiRequest<{ deleted_documents: number }>("/users/me/documents", {
@@ -549,7 +547,6 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["settings-docs-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["shell-docs-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["documents"] });
-      setConfirmPurgeFiles(false);
       pushToast({
         title: `Deleted ${res.data?.deleted_documents ?? 0} document(s)`,
         variant: "info",
@@ -560,8 +557,6 @@ export default function SettingsPage() {
         description: err instanceof Error ? err.message : "Request failed.",
         variant: "error",
       });
-    } finally {
-      setPurgingFiles(false);
     }
   };
 
@@ -573,11 +568,6 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
-      pushToast({ title: "Type DELETE to confirm account removal", variant: "error" });
-      return;
-    }
-    setDeletingAccount(true);
     try {
       await apiRequest("/users/me", { method: "DELETE" });
       clearSession();
@@ -589,8 +579,6 @@ export default function SettingsPage() {
         description: err instanceof Error ? err.message : "Could not delete account.",
         variant: "error",
       });
-    } finally {
-      setDeletingAccount(false);
     }
   };
 
@@ -1355,7 +1343,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Clear Q&A History */}
-                  <div className="py-3 border-b border-[var(--dm-border)] space-y-2.5">
+                  <div className="py-3 border-b border-[var(--dm-border)]">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium">Clear All Q&amp;A Chat Threads</p>
@@ -1363,43 +1351,19 @@ export default function SettingsPage() {
                           Permanently delete all conversation threads in AI Search &amp; Q&amp;A.
                         </p>
                       </div>
-                      {!confirmClearChats && (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmClearChats(true)}
-                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-amber-500/40 text-amber-400 text-xs font-medium hover:bg-amber-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Clear Q&amp;A History</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsConfirm({ type: "clear_chats" })}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-amber-500/40 text-amber-400 text-xs font-medium hover:bg-amber-500/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Clear Q&amp;A History</span>
+                      </button>
                     </div>
-                    {confirmClearChats && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
-                        <span>Delete all Q&amp;A threads permanently?</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={clearingChats}
-                            onClick={handleClearQaHistory}
-                            className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-500 disabled:opacity-50"
-                          >
-                            {clearingChats ? "Clearing..." : "Confirm Clear"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmClearChats(false)}
-                            className="px-3 py-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)]"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Purge All Workspace Files */}
-                  <div className="py-3 border-b border-[var(--dm-border)] space-y-2.5">
+                  <div className="py-3 border-b border-[var(--dm-border)]">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium">Purge All Workspace Files Now</p>
@@ -1408,39 +1372,15 @@ export default function SettingsPage() {
                           storage.
                         </p>
                       </div>
-                      {!confirmPurgeFiles && (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmPurgeFiles(true)}
-                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-red-500/40 text-red-400 text-xs font-medium hover:bg-red-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Delete All Files</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsConfirm({ type: "purge_files" })}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-red-500/40 text-red-400 text-xs font-medium hover:bg-red-500/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete All Files</span>
+                      </button>
                     </div>
-                    {confirmPurgeFiles && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs">
-                        <span>This immediately deletes all documents in your workspace.</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={purgingFiles}
-                            onClick={handlePurgeWorkspaceFiles}
-                            className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-500 disabled:opacity-50"
-                          >
-                            {purgingFiles ? "Deleting..." : "Confirm Delete All"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmPurgeFiles(false)}
-                            className="px-3 py-1.5 rounded-lg border border-[var(--dm-border)] bg-[var(--dm-surface)]"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Reset Preferences */}
@@ -1453,7 +1393,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={handleResetPreferences}
+                      onClick={() => setSettingsConfirm({ type: "reset_prefs" })}
                       className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-bg)] text-xs font-medium hover:bg-[var(--dm-subtle)]"
                     >
                       <RotateCcw className="h-3.5 w-3.5 text-indigo-400" />
@@ -1577,7 +1517,7 @@ export default function SettingsPage() {
                         {(sessionsQuery.data ?? []).length > 1 && (
                           <button
                             type="button"
-                            onClick={handleRevokeOtherSessions}
+                            onClick={() => setSettingsConfirm({ type: "revoke_others" })}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-bg)] text-xs font-medium hover:border-red-500/40 hover:text-red-400"
                           >
                             <LogOut className="h-3.5 w-3.5" />
@@ -1620,7 +1560,13 @@ export default function SettingsPage() {
                               {!sess.is_current && (
                                 <button
                                   type="button"
-                                  onClick={() => handleRevokeSession(sess.id)}
+                                  onClick={() =>
+                                    setSettingsConfirm({
+                                      type: "revoke_session",
+                                      sessionId: sess.id,
+                                      label: summarizeUserAgent(sess.user_agent),
+                                    })
+                                  }
                                   className="px-3 py-1.5 rounded-lg border border-[var(--dm-border)] text-red-400 hover:bg-red-500/10"
                                 >
                                   Revoke
@@ -1642,49 +1588,13 @@ export default function SettingsPage() {
                         Permanently deletes your account, all uploaded documents, versions, Q&amp;A
                         threads, and thumbnails immediately. This cannot be undone.
                       </p>
-                      {!confirmDeleteAccount ? (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteAccount(true)}
-                          className="px-4 py-2 text-xs font-medium rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10"
-                        >
-                          Delete My Account
-                        </button>
-                      ) : (
-                        <div className="space-y-3 pt-1">
-                          <div className="flex items-center gap-2 text-xs text-red-400">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            <span>Type DELETE below to confirm permanent account removal:</span>
-                          </div>
-                          <input
-                            type="text"
-                            value={deleteConfirmText}
-                            onChange={(e) => setDeleteConfirmText(e.target.value)}
-                            placeholder="DELETE"
-                            className="dm-input w-full max-w-xs px-3 py-2 text-sm font-mono"
-                          />
-                          <div className="flex items-center gap-2.5">
-                            <button
-                              type="button"
-                              disabled={deletingAccount}
-                              onClick={handleDeleteAccount}
-                              className="px-4 py-2 text-xs rounded-xl bg-red-600 text-white font-medium hover:bg-red-500 disabled:opacity-50"
-                            >
-                              {deletingAccount ? "Deleting..." : "Confirm Permanent Deletion"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setConfirmDeleteAccount(false);
-                                setDeleteConfirmText("");
-                              }}
-                              className="px-4 py-2 text-xs rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)]"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsConfirm({ type: "delete_account" })}
+                        className="px-4 py-2 text-xs font-medium rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10"
+                      >
+                        Delete My Account
+                      </button>
                     </section>
                   </>
                 )}
@@ -1752,6 +1662,79 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={settingsConfirm !== null}
+        title={
+          settingsConfirm?.type === "clear_chats"
+            ? "Are you sure you want to clear all Q&A chat threads?"
+            : settingsConfirm?.type === "purge_files"
+              ? "Are you sure you want to delete all workspace files?"
+              : settingsConfirm?.type === "reset_prefs"
+                ? "Are you sure you want to reset all preferences to default?"
+                : settingsConfirm?.type === "revoke_session"
+                  ? `Are you sure you want to revoke "${settingsConfirm.label}"?`
+                  : settingsConfirm?.type === "revoke_others"
+                    ? "Are you sure you want to sign out of all other devices?"
+                    : "Are you sure you want to permanently delete your account?"
+        }
+        description={
+          settingsConfirm?.type === "clear_chats"
+            ? "All conversation threads and cited answers in AI Search & Q&A will be permanently deleted."
+            : settingsConfirm?.type === "purge_files"
+              ? "All uploaded documents, versions, and generated assets in your workspace will be permanently deleted immediately."
+              : settingsConfirm?.type === "reset_prefs"
+                ? "Your theme, AI response style, custom instructions, and studio defaults will be restored to factory settings."
+                : settingsConfirm?.type === "revoke_session"
+                  ? "This device will be signed out immediately and will need to sign in again."
+                  : settingsConfirm?.type === "revoke_others"
+                    ? "Every other signed-in browser and device will be logged out immediately."
+                    : "Your account, all uploaded documents, versions, Q&A threads, and thumbnails will be permanently deleted immediately. This cannot be undone."
+        }
+        confirmLabel={
+          settingsConfirm?.type === "clear_chats"
+            ? "Yes, Clear Q&A History"
+            : settingsConfirm?.type === "purge_files"
+              ? "Yes, Delete All Files"
+              : settingsConfirm?.type === "reset_prefs"
+                ? "Yes, Reset Defaults"
+                : settingsConfirm?.type === "revoke_session"
+                  ? "Yes, Revoke Session"
+                  : settingsConfirm?.type === "revoke_others"
+                    ? "Yes, Sign Out Others"
+                    : "Yes, Delete My Account"
+        }
+        variant={
+          settingsConfirm?.type === "clear_chats" || settingsConfirm?.type === "reset_prefs"
+            ? "warning"
+            : "danger"
+        }
+        requireConfirmText={settingsConfirm?.type === "delete_account" ? "DELETE" : undefined}
+        loading={confirmBusy}
+        onCancel={() => setSettingsConfirm(null)}
+        onConfirm={async () => {
+          if (!settingsConfirm) return;
+          setConfirmBusy(true);
+          try {
+            if (settingsConfirm.type === "clear_chats") {
+              await handleClearQaHistory();
+            } else if (settingsConfirm.type === "purge_files") {
+              await handlePurgeWorkspaceFiles();
+            } else if (settingsConfirm.type === "reset_prefs") {
+              await handleResetPreferences();
+            } else if (settingsConfirm.type === "revoke_session") {
+              await handleRevokeSession(settingsConfirm.sessionId);
+            } else if (settingsConfirm.type === "revoke_others") {
+              await handleRevokeOtherSessions();
+            } else if (settingsConfirm.type === "delete_account") {
+              await handleDeleteAccount();
+            }
+            setSettingsConfirm(null);
+          } finally {
+            setConfirmBusy(false);
+          }
+        }}
+      />
     </AppShell>
   );
 }
