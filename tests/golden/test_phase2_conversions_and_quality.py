@@ -149,10 +149,11 @@ def test_pdf_to_xlsx_numeric_types_and_roundtrip() -> None:
     # Test multi-table PDF conversion
     multi_buf = io.BytesIO()
     doc_multi = SimpleDocTemplate(multi_buf, pagesize=letter)
+    multi_styles = getSampleStyleSheet()
     story_multi = [
-        Paragraph("Section A", ParagraphStyle("H1", fontName="Helvetica-Bold", fontSize=14)),
+        Paragraph("Section A", multi_styles["Heading1"]),
         Table([["Col1", "Col2"], ["ValA", "100"]]),
-        Paragraph("Section B", ParagraphStyle("H2", fontName="Helvetica-Bold", fontSize=14)),
+        Paragraph("Section B", multi_styles["Heading1"]),
         Table([["Col1", "Col2"], ["ValB", "200"]]),
     ]
     doc_multi.build(story_multi)
