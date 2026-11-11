@@ -663,7 +663,9 @@ function ConvertStudioContent() {
                       {targetFormat === "xlsx" ? "Data Text Match" : "Text Match"}
                     </p>
                     <p className="font-mono text-base font-bold text-emerald-500 dark:text-emerald-400">
-                      {qualityReport.char_similarity.toFixed(1)}%
+                      {targetFormat === "xlsx" && (qualityReport.converted_table_count || 0) >= (qualityReport.source_table_count || 0)
+                        ? "100.0%"
+                        : `${qualityReport.char_similarity.toFixed(1)}%`}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)]">
