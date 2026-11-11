@@ -7,6 +7,7 @@ import { Layers, Loader2, Scissors } from "lucide-react";
 import type { DocumentItem, JobRecord } from "@documind/types";
 import { formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, pollOrStreamJob } from "@/lib/api";
@@ -95,6 +96,13 @@ export default function MergeSplitPage() {
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "Merge & Split PDFs" },
+          ]}
+        />
         <PrivacyBadge />
         <div className="flex items-start gap-3.5">
           <div className="h-11 w-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shrink-0">

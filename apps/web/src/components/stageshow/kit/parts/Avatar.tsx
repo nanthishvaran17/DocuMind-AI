@@ -40,7 +40,7 @@ export function Avatar({ name = '', plain = false, size = 24, tone = name ? 'per
       data-ring={ring}
       style={{ width: size, height: size, fontSize: Math.round(size * (tone === 'ios' ? 0.4 : size < 24 ? 0.5 : 0.42)), ...person, ...style }}
     >
-      {src && !disc ? <img src={src} alt="" /> : disc ? null : <span className="ss-avatar__initial">{initials.toUpperCase()}</span>}
+      {src && !disc ? <img src={src} alt={name ? `${name} avatar` : "User avatar"} /> : disc ? null : <span className="ss-avatar__initial">{initials.toUpperCase()}</span>}
     </span>
   )
 }

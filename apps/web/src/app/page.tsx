@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -12,9 +13,33 @@ import {
   Zap,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
-import { DocuMindHeroDemo } from "@/components/stageshow/DocuMindHeroDemo";
-import { DocuMindBento } from "@/components/stageshow/DocuMindBento";
 import { useT } from "@/lib/i18n";
+
+const DocuMindHeroDemo = dynamic(
+  () => import("@/components/stageshow/DocuMindHeroDemo").then((m) => m.DocuMindHeroDemo),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden="true"
+        className="w-full min-h-[420px] sm:min-h-[480px] rounded-2xl border border-[var(--dm-border)] bg-[var(--dm-surface)] animate-pulse"
+      />
+    ),
+  }
+);
+
+const DocuMindBento = dynamic(
+  () => import("@/components/stageshow/DocuMindBento").then((m) => m.DocuMindBento),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden="true"
+        className="w-full min-h-[520px] rounded-2xl border border-[var(--dm-border)] bg-[var(--dm-surface)] animate-pulse"
+      />
+    ),
+  }
+);
 
 export default function LandingPage() {
   const { t } = useT();
@@ -263,6 +288,23 @@ export default function LandingPage() {
 
         {/* FAQ */}
         <section className="max-w-3xl mx-auto px-4 sm:px-6 py-20 space-y-6">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                mainEntity: faqs.map((item) => ({
+                  "@type": "Question",
+                  name: item.q,
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: item.a,
+                  },
+                })),
+              }),
+            }}
+          />
           <div className="text-center space-y-2">
             <span className="text-xs font-mono uppercase tracking-wider text-indigo-500 dark:text-indigo-400">
               FAQ
@@ -299,21 +341,64 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--dm-border)] bg-[var(--dm-surface)] py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--dm-muted)]">
-          <div className="flex items-center gap-2.5">
-            <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white">
-              <Layers className="h-3.5 w-3.5" />
-            </span>
-            <span className="font-semibold text-[var(--dm-text)]">{t.brand}</span>
-            <span>• Privacy-first Document Studio</span>
+      <footer className="border-t border-[var(--dm-border)] bg-[var(--dm-surface)] py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-xs">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5">
+                <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white">
+                  <Layers className="h-3.5 w-3.5" />
+                </span>
+                <span className="font-semibold text-sm text-[var(--dm-text)]">{t.brand}</span>
+              </div>
+              <p className="text-[var(--dm-muted)] leading-relaxed">
+                Privacy-first document and PDF studio with deterministic compression, OCR, and AI document intelligence.
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              <h3 className="font-semibold text-[var(--dm-text)] uppercase tracking-wider text-[11px]">
+                Document Tools
+              </h3>
+              <ul className="space-y-2 text-[var(--dm-muted)]">
+                <li><Link href="/app/tools/scan" className="hover:text-[var(--dm-text)] transition-colors">Auto Camera Scanner</Link></li>
+                <li><Link href="/app/tools/compress" className="hover:text-[var(--dm-text)] transition-colors">PDF Compressor (&lt;100 KB)</Link></li>
+                <li><Link href="/app/tools/photo-resizer" className="hover:text-[var(--dm-text)] transition-colors">Photo &amp; Exam Resizer</Link></li>
+                <li><Link href="/app/tools/pdf" className="hover:text-[var(--dm-text)] transition-colors">PDF Page Workbench</Link></li>
+                <li><Link href="/app/tools/convert" className="hover:text-[var(--dm-text)] transition-colors">Format Converter</Link></li>
+                <li><Link href="/app/tools/ocr" className="hover:text-[var(--dm-text)] transition-colors">Multilingual OCR (EN + Tamil)</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-2.5">
+              <h3 className="font-semibold text-[var(--dm-text)] uppercase tracking-wider text-[11px]">
+                Studio &amp; AI
+              </h3>
+              <ul className="space-y-2 text-[var(--dm-muted)]">
+                <li><Link href="/app" className="hover:text-[var(--dm-text)] transition-colors">Document Workspace</Link></li>
+                <li><Link href="/app/intelligence" className="hover:text-[var(--dm-text)] transition-colors">AI Document Intelligence</Link></li>
+                <li><Link href="/app/workflows" className="hover:text-[var(--dm-text)] transition-colors">Workflow Automation</Link></li>
+                <li><Link href="/login" className="hover:text-[var(--dm-text)] transition-colors">Sign In</Link></li>
+                <li><Link href="/register" className="hover:text-[var(--dm-text)] transition-colors">Create Free Account</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-2.5">
+              <h3 className="font-semibold text-[var(--dm-text)] uppercase tracking-wider text-[11px]">
+                Trust &amp; Legal
+              </h3>
+              <ul className="space-y-2 text-[var(--dm-muted)]">
+                <li><Link href="/security" className="hover:text-[var(--dm-text)] transition-colors">Security Architecture</Link></li>
+                <li><Link href="/privacy" className="hover:text-[var(--dm-text)] transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-[var(--dm-text)] transition-colors">Terms of Service</Link></li>
+                <li><a href="/llms.txt" className="hover:text-[var(--dm-text)] transition-colors">AI Crawler Guide (llms.txt)</a></li>
+              </ul>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-5">
-            <Link href="/app" className="hover:text-[var(--dm-text)]">Workspace</Link>
-            <Link href="/app/tools/compress" className="hover:text-[var(--dm-text)]">Compress PDF</Link>
-            <Link href="/security" className="hover:text-[var(--dm-text)]">Security</Link>
-            <Link href="/privacy" className="hover:text-[var(--dm-text)]">Privacy</Link>
-            <Link href="/terms" className="hover:text-[var(--dm-text)]">Terms</Link>
+
+          <div className="pt-6 border-t border-[var(--dm-border)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[var(--dm-muted)]">
+            <span>{t.brand} &bull; Privacy-first Document Studio</span>
+            <span>Chennai, India &bull; Zero-training guarantee</span>
           </div>
         </div>
       </footer>

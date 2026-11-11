@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { Camera, CheckCircle2, Download, Loader2, ScanLine } from "lucide-react";
 import { formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import {
   AutoDocScanner,
   exportPageForUpload,
@@ -90,6 +91,13 @@ export default function CameraScanPage() {
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "Auto Document Scanner" },
+          ]}
+        />
         <PrivacyBadge />
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3.5">

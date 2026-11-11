@@ -16,9 +16,9 @@ jobs:
       - name: Install backend deps
         run: pip install -r apps/api/requirements.txt
       - name: Ruff lint
-        run: ruff check apps/api services/document-worker tests
+        run: ruff check --config apps/api/pyproject.toml apps/api services/document-worker tests
       - name: Mypy typecheck
-        run: mypy apps/api/app services/document-worker/worker
+        run: mypy --config-file apps/api/pyproject.toml apps/api/app services/document-worker/worker
       - name: Pytest with coverage
         run: |
           cd apps/api
@@ -29,8 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "24"

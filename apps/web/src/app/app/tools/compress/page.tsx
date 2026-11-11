@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, Download, Loader2, Minimize2, Upload } fro
 import type { DocumentItem, JobRecord } from "@documind/types";
 import { COMPRESS_TARGET_PRESETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";
@@ -93,6 +94,13 @@ export default function CompressToolPage() {
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "Compress PDF" },
+          ]}
+        />
         <PrivacyBadge />
 
         <div className="flex items-start gap-3.5">

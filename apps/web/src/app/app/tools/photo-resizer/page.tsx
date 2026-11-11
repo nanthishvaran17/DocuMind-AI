@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, Image as ImageIcon, Loader2, Upload } from "lucide-react";
 import { formatBytes, PHOTO_RESIZE_PRESETS } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob } from "@/lib/api";
@@ -105,6 +106,13 @@ export default function PhotoResizerPage() {
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "Photo & Signature Resizer" },
+          ]}
+        />
         <PrivacyBadge />
         <div className="flex items-start gap-3.5">
           <div className="h-11 w-11 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center text-violet-500 dark:text-violet-400 shrink-0">

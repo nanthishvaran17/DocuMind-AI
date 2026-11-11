@@ -102,7 +102,7 @@ export function DocuMindHeroDemo() {
   return (
     <div className="look-documind dmh-wrap">
       <Stage
-        width={984}
+        width={1020}
         height={420}
         compact={{ below: 640, width: 358, height: 390 }}
         initial={INITIAL}

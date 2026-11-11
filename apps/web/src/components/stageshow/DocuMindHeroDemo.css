@@ -1,6 +1,6 @@
 .dmh-wrap {
   width: 100%;
-  max-width: 984px;
+  max-width: 1020px;
   margin: 0 auto;
 }
 
@@ -11,12 +11,12 @@
   border: 1px solid var(--ss-line);
 }
 
-/* Main window: pinned top-left (32px gutter), bleeds past right and bottom */
+/* Main window: pinned top-left (32px gutter), right/bottom bleed */
 .dmh-window {
   position: absolute;
   top: 28px;
   left: 32px;
-  width: 1020px;
+  width: 920px;
   height: 440px;
   box-shadow: var(--ss-shadow-hero);
 }
@@ -217,7 +217,7 @@
 .dmh-popover {
   position: absolute;
   top: 76px;
-  left: 330px;
+  left: 370px;
   width: 360px;
   padding: 12px;
   display: flex;

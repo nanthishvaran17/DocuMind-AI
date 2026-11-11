@@ -33,7 +33,7 @@ export function Pin({ name = '', src, size = 24, corner = 'bl', tone = 'accent',
       data-selected={selected || undefined}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.42), ...style }}
     >
-      <span className="ss-pin__face">{src && !plain ? <img src={src} alt="" /> : plain ? null : name.trim()[0]?.toUpperCase()}</span>
+      <span className="ss-pin__face">{src && !plain ? <img src={src} alt={name ? `${name} pin` : "Map pin"} /> : plain ? null : name.trim()[0]?.toUpperCase()}</span>
     </span>
   )
 }
