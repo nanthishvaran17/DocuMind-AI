@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" fill="none">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1200" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B0D12"/>
+      <stop offset="55%" stop-color="#111420"/>
+      <stop offset="100%" stop-color="#0E1119"/>
+    </linearGradient>
+    <radialGradient id="glow-indigo" cx="0.22" cy="0.25" r="0.55">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-violet" cx="0.82" cy="0.78" r="0.5">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="border-grad" x1="0" y1="0" x2="1200" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#232733" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#232733" stroke-width="0.7" stroke-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <!-- Base Card -->
+  <rect x="2" y="2" width="1196" height="336" rx="20" fill="url(#bg-grad)" stroke="url(#border-grad)" stroke-width="2"/>
+  <rect x="2" y="2" width="1196" height="336" rx="20" fill="url(#grid)"/>
+  <rect x="2" y="2" width="1196" height="336" rx="20" fill="url(#glow-indigo)"/>
+  <rect x="2" y="2" width="1196" height="336" rx="20" fill="url(#glow-violet)"/>
+
+  <!-- Left Content: Brand Icon + Title + Subtitle + Pills -->
+  <g transform="translate(64, 58)">
+    <!-- Brand Icon -->
+    <rect x="0" y="0" width="64" height="64" rx="16" fill="url(#brand-grad)"/>
+    <path d="M21 14h15l9 9v19a2 2 0 0 1-2 2H21a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" fill="#0B0D12" fill-opacity="0.22" stroke="#FFFFFF" stroke-width="2.5"/>
+    <path d="M36 14v9h9" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M25 30h14M25 36h10" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Status Pill -->
+    <rect x="84" y="14" width="250" height="30" rx="15" fill="#181C25" stroke="#6366F1" stroke-opacity="0.45" stroke-width="1"/>
+    <circle cx="102" cy="29" r="4.5" fill="#10B981"/>
+    <text x="116" y="33.5" fill="#C7D2FE" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" font-weight="600" letter-spacing="0.4">PRIVACY-FIRST DOCUMENT WORKSPACE</text>
+  </g>
+
+  <!-- Main Heading -->
+  <text x="64" y="176" fill="#FFFFFF" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="700" letter-spacing="-1.2">DocuMind AI</text>
+  <text x="64" y="216" fill="#9CA3AF" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="400">
+    Exact-KB PDF toolkit, exam photo resizer, camera scan &amp; immutable versioning (EN + தமிழ்)
+  </text>
+
+  <!-- Feature Pills -->
+  <g transform="translate(64, 248)" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500">
+    <rect x="0" y="0" width="166" height="34" rx="8" fill="#12151C" stroke="#232733" stroke-width="1.2"/>
+    <circle cx="16" cy="17" r="4" fill="#6366F1"/>
+    <text x="28" y="21.5" fill="#E8EAF0">Immutable v1 → vN</text>
+
+    <rect x="178" y="0" width="176" height="34" rx="8" fill="#12151C" stroke="#232733" stroke-width="1.2"/>
+    <circle cx="194" cy="17" r="4" fill="#10B981"/>
+    <text x="206" y="21.5" fill="#E8EAF0">Exact-KB Compression</text>
+
+    <rect x="366" y="0" width="160" height="34" rx="8" fill="#12151C" stroke="#232733" stroke-width="1.2"/>
+    <circle cx="382" cy="17" r="4" fill="#38BDF8"/>
+    <text x="394" y="21.5" fill="#E8EAF0">1h Guest Auto-Purge</text>
+
+    <rect x="538" y="0" width="150" height="34" rx="8" fill="#12151C" stroke="#232733" stroke-width="1.2"/>
+    <circle cx="554" cy="17" r="4" fill="#8B5CF6"/>
+    <text x="566" y="21.5" fill="#E8EAF0">AGPL-Isolated Engine</text>
+  </g>
+
+  <!-- Right Side: Minimalist Architecture Preview Card -->
+  <g transform="translate(812, 48)">
+    <rect x="0" y="0" width="324" height="244" rx="14" fill="#12151C" fill-opacity="0.92" stroke="#232733" stroke-width="1.5"/>
+    <!-- Window Dots -->
+    <circle cx="20" cy="18" r="4.5" fill="#EF4444" fill-opacity="0.8"/>
+    <circle cx="36" cy="18" r="4.5" fill="#F59E0B" fill-opacity="0.8"/>
+    <circle cx="52" cy="18" r="4.5" fill="#10B981" fill-opacity="0.8"/>
+    <text x="72" y="22" fill="#6B7280" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">documind / pipeline</text>
+    <line x1="0" y1="36" x2="324" y2="36" stroke="#232733" stroke-width="1"/>
+
+    <!-- Pipeline Rows -->
+    <g transform="translate(18, 54)" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+      <!-- Step 1 -->
+      <rect x="0" y="0" width="288" height="38" rx="8" fill="#181C25" stroke="#232733"/>
+      <rect x="10" y="10" width="18" height="18" rx="4" fill="#6366F1" fill-opacity="0.2" stroke="#6366F1"/>
+      <text x="15.5" y="23" fill="#A5B4FC" font-size="11" font-weight="700">1</text>
+      <text x="38" y="23" fill="#E8EAF0">Magic-Byte + ClamAV Scan</text>
+      <text x="242" y="23" fill="#10B981" font-size="11">PASS</text>
+
+      <!-- Step 2 -->
+      <rect x="0" y="48" width="288" height="38" rx="8" fill="#181C25" stroke="#232733"/>
+      <rect x="10" y="58" width="18" height="18" rx="4" fill="#8B5CF6" fill-opacity="0.2" stroke="#8B5CF6"/>
+      <text x="15.5" y="71" fill="#DDD6FE" font-size="11" font-weight="700">2</text>
+      <text x="38" y="71" fill="#E8EAF0">JS Strip + SHA-256 v1</text>
+      <text x="242" y="71" fill="#38BDF8" font-size="11">SAFE</text>
+
+      <!-- Step 3 -->
+      <rect x="0" y="96" width="288" height="38" rx="8" fill="#181C25" stroke="#232733"/>
+      <rect x="10" y="106" width="18" height="18" rx="4" fill="#10B981" fill-opacity="0.2" stroke="#10B981"/>
+      <text x="15.5" y="119" fill="#6EE7B7" font-size="11" font-weight="700">3</text>
+      <text x="38" y="119" fill="#E8EAF0">Approve Plan → Worker</text>
+      <text x="242" y="119" fill="#A5B4FC" font-size="11">v2</text>
+
+      <!-- Footer Metric Bar -->
+      <rect x="0" y="146" width="288" height="28" rx="6" fill="#0B0D12" stroke="#232733"/>
+      <text x="12" y="164" fill="#8B93A7" font-size="11">Next.js 15 • FastAPI • Celery • pgvector</text>
+    </g>
+  </g>
+</svg>

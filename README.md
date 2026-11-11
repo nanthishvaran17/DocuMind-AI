@@ -1,102 +1,176 @@
 <div align="center">
 
-# DocuMind AI
+<img src="docs/assets/hero-banner.svg" alt="DocuMind AI — Privacy-First Document Workspace & PDF Toolkit" width="100%" />
 
-**Privacy-first AI Document Workspace & PDF Toolkit (English + தமிழ்)**
+<br />
+<br />
 
-Built for students, researchers, and professionals who need exact-KB compression, exam-ready photo/signature resizing, camera-to-PDF scanning, immutable document versioning, and verifiable privacy controls.
+[![CI Status](https://img.shields.io/github/actions/workflow/status/nanthishvaran17/DocuMind-AI/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/nanthishvaran17/DocuMind-AI/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-6366F1?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](apps/web/package.json)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](apps/api/pyproject.toml)
+[![Python](https://img.shields.io/badge/Python_3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](apps/api/requirements.txt)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16_%2B_pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](docker-compose.yml)
+[![Bilingual](https://img.shields.io/badge/UI-English_%2B_%E0%AE%A4%E0%AE%AE%E0%AE%BF%E0%AE%B4%E0%AF%8D-8B5CF6?style=for-the-badge)](apps/web/messages)
 
-[![CI](https://github.com/nanthishvaran17/DocuMind-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/nanthishvaran17/DocuMind-AI/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](apps/api/requirements.txt)
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](apps/web/package.json)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](apps/api/pyproject.toml)
+<br />
+
+**A security-hardened, non-destructive AI document workspace and PDF utility suite — engineered for students, researchers, and professionals.**
+
+[Quick Start](#-quick-start) • [Features](#-core-capabilities) • [Architecture](#-system-architecture) • [API Reference](#-api-surface) • [Security](#-security--defense-in-depth) • [Roadmap](#-roadmap)
 
 </div>
 
 ---
 
-## Table of Contents
+## Why DocuMind AI?
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
-- [Monorepo Structure](#monorepo-structure)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-  - [Option 1: Docker Compose (Full Stack)](#option-1-docker-compose-full-stack)
-  - [Option 2: Local Development (Without Docker)](#option-2-local-development-without-docker)
-- [Environment Variables](#environment-variables)
-- [API Overview](#api-overview)
-- [Testing, Linting & CI](#testing-linting--ci)
-- [Security & Licensing](#security--licensing)
-- [Roadmap](#roadmap)
+Most online PDF tools silently overwrite files, enforce opaque upload limits, fake compression ratios, or offer zero visibility into retention and licensing. **DocuMind AI** is engineered from the ground up around four non-negotiable principles:
+
+| Principle | How DocuMind AI Enforces It |
+| :--- | :--- |
+| **Non-Destructive Versioning** | Every upload is stored as immutable `v1` with a SHA-256 checksum. Every edit, merge, compression, or watermark produces `v2`, `v3`, … while preserving full audit history. |
+| **Zero-Signup Guest Mode** | Start immediately in an isolated 60-minute guest session (`POST /api/v1/auth/guest`). Guest assets are automatically purged on expiry or on demand. |
+| **Honest, Exact-KB Metrics** | Compression reports real before/after byte sizes and explicitly warns when hitting a strict target (e.g., `< 100 KB`) requires splitting pages — never silently degrades into guesswork. |
+| **Defense-in-Depth & License Hygiene** | Magic-byte checks, 40 MP decompression-bomb & 150 MB ZIP-bomb guards, PDF JavaScript stripping, ClamAV scanning, and strict AGPL-3.0 isolation ([ADR-001](docs/decisions/ADR-001-pymupdf-isolation.md)). |
+
+> [!IMPORTANT]
+> **Privacy Guarantee:** Uploaded documents remain strictly scoped to your authenticated user account or ephemeral guest session (`user_id` / `guest_session_id`) and are never used to train AI models.
 
 ---
 
-## Overview
+## Core Capabilities
 
-**DocuMind AI** combines a full-featured document workspace with deterministic PDF and image utilities in a security-hardened monorepo:
+<table>
+<tr>
+<td width="50%" valign="top">
 
-- **Non-destructive by design:** Every upload starts as immutable `v1`. Operations like compress, merge, rotate, watermark, page numbering, or unlock create new versions (`v2`, `v3`, ...) with full SHA-256 checksums and audit logs.
-- **No-signup Guest Mode:** Try core PDF and image tools immediately in an ephemeral guest session. Guest files automatically expire after 60 minutes (or can be purged immediately).
-- **Real metrics, never faked:** Compression reports honest before/after sizes and warns clearly if a strict target (e.g., `< 100 KB`) requires splitting pages.
-- **Bilingual UI:** First-class support for **English** and **Tamil (தமிழ்)** with `Noto Sans Tamil` typography and instant switching.
+### Workspace & Viewer
+- **Chunked & Resumable Uploads:** Standard single-shot (`/upload`) and chunked (`/upload/init` → `/chunk` → `/complete`) flows with SHA-256 duplicate detection.
+- **Interactive PDF.js Workspace:** Resizable split-pane reader (`react-resizable-panels`), per-page thumbnails, page metadata, and version history timeline.
+- **Folders, Search & Safe Trash:** Nested folder hierarchy, favorites, full-text filtering, soft-delete to Trash, one-click restore, and permanent purge.
+- **Bilingual EN + தமிழ் UI:** Native English and Tamil (`Noto Sans Tamil`) localization via `next-intl` with instant switching.
+- **Keyboard-First & PWA:** Global `Cmd/Ctrl + K` Command Palette (`cmdk`), dark/light theming (`next-themes`), and installable PWA (`manifest.json` + `sw.js`).
+
+</td>
+<td width="50%" valign="top">
+
+### PDF & Student Utilities
+- **Exact-KB Compression:** Progressive stream & image recompression targeting `100 KB`, `200 KB`, `1 MB`, or `2 MB` portal limits.
+- **Merge & Split:** Multi-document merge with per-file page ranges (`1-3, 5`), plus split by custom ranges or every *N* pages.
+- **Page Manipulation:** Rotate (`90°`, `180°`, `270°`), reorder, extract, and delete pages non-destructively.
+- **Annotations & Encryption:** Configurable diagonal text watermarks, template-based page numbering (`Page {n} of {total}`), AES-256 PDF protection, and password-verified unlock.
+- **Exam Photo & Camera Scan:** 1-click presets for **Passport**, **Signature**, **GATE/JEE**, **UPSC/TNPSC**, and **PAN**, plus 1–30 photo **Camera Scan to PDF**.
+
+</td>
+</tr>
+</table>
+
+### Built-In Presets (Shared Type-Safe Contracts)
+
+<details>
+<summary><strong>View Exact-KB Compression & Exam Photo/Signature Presets</strong> (defined in <code>packages/shared/src/index.ts</code>)</summary>
+
+#### PDF Compression Presets
+| Preset ID | Target Size | Typical Use Case |
+| :--- | :--- | :--- |
+| `100kb` | Under `100 KB` | Scholarship & Exam Portals |
+| `200kb` | Under `200 KB` | College Admission & Govt Forms |
+| `1mb` | Under `1 MB` | Email & Assignment Upload |
+| `2mb` | Under `2 MB` | Standard Portal Limit |
+
+#### Student Photo & Signature Presets
+| Preset ID | Label | Dimensions | DPI | Max Size | Format |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| `passport_india` | Passport Photo (3.5 × 4.5 cm) | `413 × 531 px` | `300` | `100 KB` | `JPEG` |
+| `signature_standard` | Signature Box (3.5 × 1.5 cm) | `413 × 177 px` | `300` | `50 KB` | `JPEG` |
+| `gate_photo` | GATE / JEE Photo | `480 × 640 px` | `200` | `200 KB` | `JPEG` |
+| `upsc_photo` | UPSC / TNPSC Photo | `350 × 350 px` | `200` | `300 KB` | `JPEG` |
+| `pan_photo` | PAN Card Photo | `213 × 213 px` | `300` | `50 KB` | `JPEG` |
+
+</details>
 
 ---
 
-## Key Features
+## System Architecture
 
-### Document Workspace & Viewer
-- **Chunked & Standard Uploads:** Multi-part chunked upload flow (`/upload/init`, `/upload/{id}/chunk`, `/upload/{id}/complete`) with magic-byte validation and duplicate SHA-256 detection.
-- **Folder Organization & Trash:** Nested folders, favorites, search, soft-delete to Trash, restore, and permanent deletion.
-- **Interactive PDF Workspace:** Resizable split-pane PDF.js viewer with page thumbnails, page metadata, and version history inspection.
-- **Command Palette (`Cmd/Ctrl + K`):** Fast keyboard-first navigation via `cmdk`.
-- **PWA Ready:** Installable Progressive Web App with offline-capable shell (`manifest.json` + service worker).
+DocuMind AI decouples the **Web UI**, the **Control-Plane API**, and the **Read-Only Document Worker** so untrusted file parsing and AGPL-3.0 dependencies never touch the core API surface.
 
-### PDF Toolkit (`apps/api` + `services/document-worker`)
-- **Exact-KB Compression:** Presets for `Under 100 KB`, `Under 200 KB`, `Under 1 MB`, and `Under 2 MB` tailored for scholarship, university, and government portals.
-- **Merge & Split:** Combine multiple PDFs with custom page-range selections (`1-3, 5`), or split by page ranges / every *N* pages.
-- **Page Operations:** Rotate (`90°`, `180°`, `270°`), reorder, extract, and delete pages.
-- **Annotations & Security:** Diagonal text watermarks (configurable text, opacity, angle, font size), customizable page numbering (`Page {n} of {total}`), AES-256 PDF password protection, and strict password-verified unlock.
+```mermaid
+flowchart TB
+    subgraph Edge["Edge & Client"]
+        Browser["Next.js 15 / React 19 PWA<br/>PDF.js • cmdk • EN/தமிழ்"]
+        Nginx["Nginx Reverse Proxy<br/>(60M upload limit • Security Headers)"]
+        Browser -->|HTTPS / REST / SSE| Nginx
+    end
 
-### Student & Mobile Utilities
-- **Passport, Photo & Signature Resizer:** One-click dimension, DPI, and KB presets for:
-  - Passport Photo (`413×531 px`, 300 DPI, ≤ 100 KB)
-  - Signature Box (`413×177 px`, 300 DPI, ≤ 50 KB)
-  - GATE / JEE (`480×640 px`, 200 DPI, ≤ 200 KB)
-  - UPSC / TNPSC (`350×350 px`, 200 DPI, ≤ 300 KB)
-  - PAN Card (`213×213 px`, 300 DPI, ≤ 50 KB)
-  - Optional background enhancement cleanup.
-- **Camera Scan to PDF:** Upload 1–30 gallery/camera photos (`PNG`/`JPG`) and enhance contrast into a multi-page PDF.
+    subgraph AppLayer["Application Services"]
+        Web["apps/web<br/>Port 3000"]
+        API["apps/api (FastAPI)<br/>Auth • RBAC • Validation • SSE<br/>Port 8000"]
+        Nginx -->|"/"| Web
+        Nginx -->|"/api/*"| API
+    end
+
+    subgraph WorkerLayer["Isolated Execution"]
+        Worker["services/document-worker (Celery)<br/>read_only: true • no-new-privileges<br/>pikepdf • pypdf • ReportLab • Pillow"]
+    end
+
+    subgraph DataLayer["State, Queue & Security"]
+        DB[("PostgreSQL 16 + pgvector<br/>(or SQLite in local dev)")]
+        Redis[("Redis 7<br/>Broker • Cache • Rate Limits")]
+        S3[("MinIO / S3<br/>(or ./local_storage)")]
+        ClamAV["ClamAV Daemon<br/>(clamd :3310)"]
+    end
+
+    API -->|"SQLAlchemy Async"| DB
+    API -->|"Enqueue & Rate Limit"| Redis
+    API -->|"Malware Scan"| ClamAV
+    API -->|"Put / Get Objects"| S3
+    Redis -->|"default / convert queues"| Worker
+    Worker -->|"Read v1 / Write vN"| S3
+    Worker -->|"Update Job & Versions"| DB
+```
+
+### Upload, Sanitization & Versioning Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant API as FastAPI (apps/api)
+    participant AV as ClamAV (clamd)
+    participant S3 as Object Storage (S3/Local)
+    participant Worker as Document Worker (Celery)
+    participant DB as PostgreSQL / SQLite
+
+    User->>API: POST /api/v1/documents/upload
+    API->>API: Validate extension, magic bytes & bomb limits
+    API->>AV: Scan raw bytes for malware
+    AV-->>API: Clean verdict
+    API->>S3: Store immutable v1 artifact
+    API->>DB: Create Document + DocumentVersion (v1, SHA-256) + AuditLog
+    API-->>User: 201 Created (Document metadata)
+
+    User->>API: POST /api/v1/tools/compress-to-size (Idempotency-Key)
+    API->>DB: Create ConversionJob (status=queued)
+    API-->>User: 202 Accepted (job_id)
+    User->>API: GET /api/v1/jobs/{job_id}/events (SSE)
+    Worker->>S3: Fetch v1 bytes & strip PDF JavaScript
+    Worker->>Worker: Execute deterministic PDF operation
+    Worker->>S3: Store new version artifact (v2)
+    Worker->>DB: Save DocumentVersion (v2) & mark job completed
+    API-->>User: SSE event: completed + output_version_id
+```
 
 ### Approval-Gated Command Bar
-- **Natural-Language Intent Planner (`/api/v1/ai/agent/command`):** Translates instructions like `"compress to 200 kb"`, `"rotate 90"`, `"remove pages 2-3"`, `"add page numbers"`, or `"watermark CONFIDENTIAL"` into an explicit step-by-step plan requiring user approval (`/runs/{run_id}/approve`) before dispatching jobs.
-
-### Security, Privacy & Observability
-- **Authentication & Session Hardening:** Argon2id password hashing, short-lived JWT access tokens, rotating refresh cookies, CSRF protection (`X-CSRF-Token`), and optional Google OAuth.
-- **Upload Defense-in-Depth:** Extension allowlist, magic-byte inspection, PDF JavaScript action stripping, and ClamAV (`clamd`) malware scanning integration.
-- **Strict Tenant Isolation:** Every document, folder, job, and agent run enforces strict ownership (`user_id` or `guest_session_id`) and RBAC.
-- **Telemetry & Error Contracts:** RFC 7807 `ProblemDetails` JSON responses with `X-Request-ID` tracing, structured JSON logs, and Prometheus metrics (`/api/v1/metrics`).
-
----
-
-## Architecture
 
 ```mermaid
 flowchart LR
-    User["Web Client / PWA<br/>(Next.js 15 + React 19)"] -->|HTTPS / REST / SSE| Nginx["Nginx Reverse Proxy"]
-    Nginx -->|"/"| Web["apps/web<br/>Port 3000"]
-    Nginx -->|"/api/*"| API["apps/api (FastAPI)<br/>Port 8000"]
-
-    API -->|SQLAlchemy Async| DB[("PostgreSQL 16 + pgvector<br/>or SQLite in local dev")]
-    API -->|Queue & Rate Limit| Redis[("Redis 7")]
-    API -->|Malware Scan| ClamAV["ClamAV (clamd)"]
-    API -->|Object Storage| S3[("MinIO / S3<br/>or local_storage")]
-
-    Redis -->|Celery Broker| Worker["services/document-worker<br/>(Read-only container)"]
-    Worker -->|Read / Write Artifacts| S3
-    Worker -->|Update Job & Versions| DB
+    Input["User Prompt<br/>'compress to 200 kb'"] --> Planner["POST /ai/agent/command<br/>Intent Planner"]
+    Planner --> Plan["AgentRun<br/>status: awaiting_approval"]
+    Plan --> Review{"User Reviews<br/>Step Plan"}
+    Review -->|"Approve"| Exec["POST /ai/agent/runs/{id}/approve<br/>Dispatch ConversionJob"]
+    Review -->|"Cancel"| Cancel["status: cancelled<br/>No mutation"]
 ```
 
 ---
@@ -106,50 +180,51 @@ flowchart LR
 ```text
 DocuMind AI/
 ├── apps/
-│   ├── api/                        # FastAPI control plane, auth, RBAC, Alembic migrations
+│   ├── api/                        # FastAPI control plane, RBAC, Alembic, Prometheus metrics
 │   │   ├── alembic/                # Database schema migrations
 │   │   └── app/
-│   │       ├── api/v1/             # Versioned REST & SSE routers
-│   │       ├── core/               # Settings, Argon2id/JWT security, rate limiting, logging
-│   │       ├── db/                 # SQLAlchemy 2 async models & session management
-│   │       ├── schemas/            # Pydantic v2 request/response contracts
-│   │       └── services/           # Storage (S3/local), ClamAV, validation, retention, audit
-│   └── web/                        # Next.js 15 App Router frontend (English + Tamil)
-│       ├── messages/               # i18n dictionaries (en.json, ta.json)
-│       ├── public/                 # PWA manifest, icons, service worker
-│       └── src/                    # Pages, PDF.js viewer, command palette, Zustand stores
+│   │       ├── api/v1/             # health, auth, users, folders, documents, tools, jobs, search, agent
+│   │       ├── core/               # config, security (Argon2id/JWT), rate_limit, structured JSON logging
+│   │       ├── db/                 # SQLAlchemy 2 async models (11 tables) & session management
+│   │       ├── schemas/            # Pydantic v2 envelopes & RFC 7807 ProblemDetails
+│   │       └── services/           # storage (S3/local), clamav, file_validation, job_runner, retention, audit
+│   └── web/                        # Next.js 15 App Router frontend (English + தமிழ்)
+│       ├── messages/               # en.json & ta.json translation dictionaries
+│       ├── public/                 # PWA manifest.json, icon.svg, service worker (sw.js)
+│       └── src/                    # App Router pages, PDF.js viewer, CommandPalette, Zustand stores
 ├── services/
-│   └── document-worker/            # Isolated Celery worker + pdf_engine.py (AGPL boundary)
+│   └── document-worker/            # Isolated Celery worker + pdf_engine.py (AGPL-3.0 boundary)
 ├── packages/
-│   ├── shared/                     # Shared formatters, upload allowlists, photo & compress presets
-│   ├── types/                      # Shared TypeScript API & domain contracts
-│   └── ui/                         # Design tokens and shared UI primitives
+│   ├── shared/                     # Formatters, upload extension allowlists, compression & photo presets
+│   ├── types/                      # Shared TypeScript API contracts & domain models
+│   └── ui/                         # Design tokens (tokens.css) & shared UI primitives
 ├── infrastructure/
-│   ├── deployment/                 # Nginx reverse proxy configuration
+│   ├── deployment/                 # Nginx reverse proxy config (nginx.conf)
 │   └── docker/                     # Dockerfiles for api, web, and document-worker
 ├── docs/
-│   └── decisions/                  # Architecture Decision Records (ADR-001)
+│   ├── assets/                     # README visual assets (hero-banner.svg)
+│   └── decisions/                  # Architecture Decision Records (ADR-001-pymupdf-isolation.md)
 ├── tests/
-│   ├── fixtures/                   # Sample PDFs and images for automated testing
-│   ├── unit/                       # File validation, AV scanner, and PDF engine unit tests
-│   └── integration/                # End-to-end API integration tests
-├── .github/workflows/ci.yml        # GitHub Actions (Ruff, Mypy, Pytest >=80% cov, pnpm lint/typecheck/build)
-├── docker-compose.yml              # Full local stack (Postgres, Redis, MinIO, ClamAV, API, Worker, Web)
-├── docker-compose.prod.yml         # Production Nginx overlay
-├── Makefile                        # Developer task shortcuts
-└── .env.example                    # Documented environment template
+│   ├── fixtures/                   # Sample English PDF, multipage PDF, and sample photo
+│   ├── unit/                       # File validation, AV, and PDF engine unit tests
+│   └── integration/                # Full Phase 1 API integration test suite
+├── .github/workflows/ci.yml        # CI pipeline (Ruff, Mypy, Pytest >=80% cov, pnpm lint/typecheck/build)
+├── docker-compose.yml              # Full stack: Postgres, Redis, MinIO, ClamAV, API, Worker, Web
+├── docker-compose.prod.yml         # Production Nginx reverse-proxy overlay
+├── Makefile                        # Developer workflow shortcuts
+└── .env.example                    # Documented environment variable template
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer | Technologies |
+| Layer | Stack |
 | :--- | :--- |
-| **Frontend** | Next.js 15 (App Router), React 19, TypeScript 5.7, Tailwind CSS v4, Framer Motion, Zustand, TanStack Query, `pdfjs-dist`, `cmdk`, `next-intl`, `next-themes`, `react-resizable-panels` |
-| **Backend API** | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (Async), Alembic, Argon2id (`argon2-cffi`), PyJWT, Prometheus Client |
-| **Document Worker** | Celery 5, `pikepdf` (MPL-2.0), `pypdf` (BSD-3-Clause), `ReportLab` (BSD), `Pillow` (HPND), optional isolated `PyMuPDF` |
-| **Data & Infra** | PostgreSQL 16 (`pgvector`), Redis 7, MinIO / S3, ClamAV, Nginx, Docker Compose, Turborepo + `pnpm` |
+| **Frontend** | `Next.js 15` (App Router) • `React 19` • `TypeScript 5.7` • `Tailwind CSS v4` • `Framer Motion` • `Zustand` • `TanStack Query` • `pdfjs-dist` • `cmdk` • `next-intl` • `next-themes` • `react-resizable-panels` |
+| **Backend API** | `Python 3.12+` • `FastAPI` • `Pydantic v2` • `SQLAlchemy 2` (Async) • `Alembic` • `argon2-cffi` • `PyJWT` • `prometheus-client` • `python-json-logger` |
+| **Document Worker** | `Celery 5` • `pikepdf` (`MPL-2.0`) • `pypdf` (`BSD-3-Clause`) • `ReportLab` (`BSD`) • `Pillow` (`HPND`) • optional isolated `PyMuPDF` |
+| **Infrastructure** | `PostgreSQL 16` (`pgvector`) • `Redis 7` • `MinIO / S3` • `ClamAV` • `Nginx 1.27` • `Docker Compose` • `Turborepo` + `pnpm 12` |
 
 ---
 
@@ -157,32 +232,38 @@ DocuMind AI/
 
 ### Option 1: Docker Compose (Full Stack)
 
-Starts PostgreSQL 16 (`pgvector`), Redis, MinIO, ClamAV, FastAPI API, isolated Celery Document Worker, and Next.js Web UI:
+Spins up PostgreSQL 16 (`pgvector`), Redis 7, MinIO, ClamAV, FastAPI API, isolated read-only Document Worker, and Next.js Web UI:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Once running:
-- **Web App:** `http://localhost:3000`
-- **API Docs (Swagger):** `http://localhost:8000/api/v1/docs`
-- **MinIO Console:** `http://localhost:9001` (`minioadmin` / `minioadmin`)
+| Service | Local URL | Notes |
+| :--- | :--- | :--- |
+| **Web Application** | `http://localhost:3000` | Next.js 15 UI + PWA |
+| **API & Swagger Docs** | `http://localhost:8000/api/v1/docs` | OpenAPI 3.1 interactive explorer |
+| **Prometheus Metrics** | `http://localhost:8000/api/v1/metrics` | Request latency & counters |
+| **MinIO Console** | `http://localhost:9001` | Default: `minioadmin` / `minioadmin` |
 
-> **Tip:** You can also run `make dev` if `make` is installed.
+> [!TIP]
+> To add the **Nginx production reverse proxy** (`:80` / `:443`), run:
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+> ```
 
 ---
 
 ### Option 2: Local Development (Without Docker)
 
-The `.env.example` defaults support zero-dependency local development using **SQLite** (`sqlite+aiosqlite`), **local filesystem storage** (`./local_storage`), and an **in-process task runner** (`TASK_RUNNER=inline`).
+The defaults in [`.env.example`](.env.example) are tuned for zero-dependency local development using **SQLite** (`sqlite+aiosqlite`), **local disk storage** (`./local_storage`), and an **in-process task runner** (`TASK_RUNNER=inline`).
 
-#### 1. Configure Environment
+#### 1. Initialize Environment
 ```bash
 cp .env.example .env
 ```
 
-#### 2. Start the Backend (`apps/api`)
+#### 2. Start the FastAPI Backend (`apps/api`)
 
 **Windows (PowerShell):**
 ```powershell
@@ -200,92 +281,143 @@ cd apps/api
 ../../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
 ```
 
-#### 3. Start the Frontend (`apps/web`)
+#### 3. Start the Next.js Frontend (`apps/web`)
 ```bash
 pnpm install
 pnpm --filter @documind/web dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Visit `http://localhost:3000` — SQLite tables initialize automatically on startup in dev mode.
 
 ---
 
 ## Environment Variables
 
-See [`.env.example`](.env.example) for the full reference. Key variables include:
+<details>
+<summary><strong>Full Environment Configuration Reference</strong> (from <code>.env.example</code>)</summary>
 
 | Variable | Default (Local Dev) | Description |
 | :--- | :--- | :--- |
-| `ENVIRONMENT` | `development` | `development` or `production` (enables HSTS & strict CORS) |
-| `JWT_SECRET_KEY` | — | Random secret key for signing JWTs (replace in production) |
-| `CSRF_SECRET_KEY` | — | Secret for CSRF token validation |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./documind_dev.db` | PostgreSQL (`postgresql+asyncpg://...`) or local SQLite |
-| `TASK_RUNNER` | `inline` | `celery` (Redis worker) or `inline` (in-process dev runner) |
-| `STORAGE_BACKEND` | `local` | `s3` (MinIO / AWS S3) or `local` (`./local_storage`) |
-| `CLAMAV_MODE` | `disabled_dev` | `clamd` (active ClamAV daemon) or `disabled_dev` |
-| `MAX_UPLOAD_SIZE_MB` | `50` | Maximum allowed file upload size in MB |
-| `PDF_ENGINE_ALLOW_PYMUPDF` | `false` | Controls optional PyMuPDF engine inside `document-worker` |
+| `APP_NAME` | `"DocuMind AI"` | Display name returned in API metadata |
+| `ENVIRONMENT` | `"development"` | `"development"` or `"production"` (enables HSTS & strict CORS) |
+| `DEBUG` | `"true"` | Enables verbose dev diagnostics |
+| `PUBLIC_APP_URL` | `"http://localhost:3000"` | Canonical frontend URL |
+| `NEXT_PUBLIC_API_URL` | `"http://localhost:8000/api/v1"` | Frontend API base URL |
+| `CORS_ORIGINS` | `"http://localhost:3000"` | Comma-separated allowed CORS origins |
+| `JWT_SECRET_KEY` | — | Generate via `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `JWT_ALGORITHM` | `"HS256"` | JWT signing algorithm |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `"15"` | Short-lived access token TTL |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `"14"` | Rotating refresh cookie TTL |
+| `GUEST_SESSION_EXPIRE_MINUTES` | `"60"` | Ephemeral guest session & auto-purge window |
+| `CSRF_SECRET_KEY` | — | Secret used to sign/verify `X-CSRF-Token` |
+| `COOKIE_SECURE` | `"false"` | Set `"true"` behind HTTPS in production |
+| `GOOGLE_CLIENT_ID` / `SECRET` | `""` | Optional Google OAuth credentials |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./documind_dev.db` | Use `postgresql+asyncpg://...` for Postgres + pgvector |
+| `REDIS_URL` | `"redis://localhost:6379/0"` | Redis cache & rate-limit store |
+| `CELERY_BROKER_URL` | `"redis://localhost:6379/1"` | Celery task queue broker |
+| `CELERY_RESULT_BACKEND` | `"redis://localhost:6379/2"` | Celery result backend |
+| `TASK_RUNNER` | `"inline"` | `"celery"` (distributed worker) or `"inline"` (local dev) |
+| `STORAGE_BACKEND` | `"local"` | `"s3"` (MinIO/AWS S3) or `"local"` (`./local_storage`) |
+| `S3_ENDPOINT_URL` / `BUCKET` | `http://localhost:9000` / `documind-uploads` | S3-compatible object storage configuration |
+| `CLAMAV_MODE` | `"disabled_dev"` | `"clamd"` (active ClamAV daemon) or `"disabled_dev"` |
+| `MAX_UPLOAD_SIZE_MB` | `"50"` | Maximum allowed upload size per file |
+| `MAX_PDF_PAGES` | `"1000"` | Maximum inspectable pages per PDF |
+| `RATE_LIMIT_PER_MINUTE` | `"120"` | API rate limit per actor/IP |
+| `PDF_ENGINE_ALLOW_PYMUPDF` | `"false"` | Controls optional PyMuPDF inside `services/document-worker` |
+
+</details>
 
 ---
 
-## API Overview
+## API Surface
 
-All endpoints are served under `/api/v1` with standardized envelopes (`{ data, error, meta }`) and OpenAPI documentation at `/api/v1/docs`.
+All endpoints live under `/api/v1` and return a standardized JSON envelope:
+```json
+{
+  "data": {},
+  "error": null,
+  "meta": { "request_id": "..." }
+}
+```
+Validation and HTTP failures conform to **RFC 7807 `ProblemDetails`** (`type`, `title`, `status`, `detail`, `instance`, `errors`).
 
-| Domain | Endpoints |
+<details>
+<summary><strong>Explore All /api/v1 Endpoints & Database Models</strong></summary>
+
+### REST & SSE Endpoints
+| Router | Endpoints |
 | :--- | :--- |
-| **Health & Metrics** | `GET /health`, `GET /metrics` (Prometheus) |
-| **Auth & Sessions** | `POST /auth/register`, `POST /auth/login`, `POST /auth/guest`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/google` |
-| **Users** | `GET /users/me`, `PATCH /users/me`, `DELETE /users/me` |
-| **Documents** | `POST /documents/upload`, `POST /documents/upload/init`, `POST /documents/upload/{id}/chunk`, `POST /documents/upload/{id}/complete`, `GET /documents`, `GET /documents/{id}`, `PATCH /documents/{id}`, `DELETE /documents/{id}`, `POST /documents/{id}/restore`, `GET /documents/{id}/preview`, `GET /documents/{id}/download`, `GET /documents/{id}/pages/{page_no}/thumbnail`, `GET /documents/{id}/history` |
-| **Folders & Search** | `GET/POST /folders`, `PATCH/DELETE /folders/{id}`, `GET /search` |
-| **PDF & Image Tools** | `POST /tools/pdf/merge`, `POST /tools/pdf/split`, `POST /tools/pdf/pages`, `POST /tools/pdf/watermark`, `POST /tools/pdf/page-numbers`, `POST /tools/pdf/protect`, `POST /tools/pdf/unlock`, `POST /tools/compress-to-size`, `POST /tools/image-resize`, `POST /tools/scan` |
-| **Jobs (SSE)** | `GET /jobs`, `GET /jobs/{id}`, `GET /jobs/{id}/events` (Server-Sent Events), `POST /jobs/{id}/cancel`, `POST /jobs/{id}/retry` |
-| **Agent Command** | `POST /ai/agent/command`, `POST /ai/agent/runs/{run_id}/approve` |
+| **Health & Observability** | `GET /health` • `GET /metrics` |
+| **Authentication** | `POST /auth/register` • `POST /auth/login` • `POST /auth/guest` • `POST /auth/refresh` • `POST /auth/logout` • `POST /auth/verify-email` • `POST /auth/forgot-password` • `POST /auth/reset-password` • `GET /auth/google` • `GET /auth/google/callback` |
+| **Users** | `GET /users/me` • `PATCH /users/me` • `DELETE /users/me` |
+| **Folders** | `GET /folders` • `POST /folders` • `PATCH /folders/{folder_id}` • `DELETE /folders/{folder_id}` |
+| **Documents** | `POST /documents/upload` • `POST /documents/upload/init` • `POST /documents/upload/{upload_id}/chunk` • `POST /documents/upload/{upload_id}/complete` • `GET /documents` • `GET /documents/{id}` • `PATCH /documents/{id}` • `DELETE /documents/{id}` • `POST /documents/{id}/restore` • `GET /documents/{id}/preview` • `GET /documents/{id}/download` • `GET /documents/{id}/pages/{page_no}/thumbnail` • `GET /documents/{id}/history` |
+| **PDF & Image Tools** | `POST /tools/pdf/merge` • `POST /tools/pdf/split` • `POST /tools/pdf/pages` • `POST /tools/pdf/watermark` • `POST /tools/pdf/page-numbers` • `POST /tools/pdf/protect` • `POST /tools/pdf/unlock` • `POST /tools/compress-to-size` • `POST /tools/image-resize` • `POST /tools/scan` |
+| **Async Jobs (SSE)** | `GET /jobs` • `GET /jobs/{job_id}` • `GET /jobs/{job_id}/events` • `POST /jobs/{job_id}/cancel` • `POST /jobs/{job_id}/retry` |
+| **Search** | `GET /search` |
+| **Command Bar Agent** | `POST /ai/agent/command` • `POST /ai/agent/runs/{run_id}/approve` |
+
+### Core SQLAlchemy Models (`apps/api/app/db/models.py`)
+`User` • `UserSession` • `OAuthAccount` • `Folder` • `Document` • `DocumentOperation` • `DocumentVersion` • `DocumentPage` • `DocumentMetadata` • `ConversionJob` • `AgentRun` • `AuditLog`
+
+</details>
+
+---
+
+## Security & Defense-in-Depth
+
+| Control Layer | Implementation Details |
+| :--- | :--- |
+| **Password & Session Auth** | `Argon2id` (`time_cost=2`, `memory_cost=65536`, `parallelism=2`), short-lived JWTs, rotating refresh cookies, and `X-CSRF-Token` verification. |
+| **Upload Validation** | Strict extension allowlist (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.txt`, `.docx`, `.xlsx`, `.pptx`), `%PDF-` magic-byte checks, 40 MP image decompression-bomb guard, and 150 MB ZIP-bomb guard. |
+| **Malware & Script Sanitization** | ClamAV (`clamd`) byte scanning on upload plus automatic PDF JavaScript action stripping in `pdf_engine.py`. |
+| **Container Isolation** | `document-worker` runs with `read_only: true`, a bounded `256M` `/tmp` tmpfs, and `no-new-privileges:true`. |
+| **Response Hardening** | Enforces `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `X-Request-ID`, and production HSTS. |
+| **AGPL-3.0 Boundary** | `PyMuPDF` is strictly excluded from `apps/api` and isolated inside `services/document-worker` behind permissive fallbacks ([ADR-001](docs/decisions/ADR-001-pymupdf-isolation.md)). |
 
 ---
 
 ## Testing, Linting & CI
 
-GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) enforces linting, static type checking, build verification, and a minimum **80% backend test coverage**.
+Every push to `main` and pull request runs the full pipeline in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
-### Backend Checks
 ```bash
-# Lint & typecheck
+# 1. Backend lint & static type checks
 ruff check apps/api services/document-worker tests
 mypy apps/api/app services/document-worker/worker
 
-# Unit & integration tests with coverage
+# 2. Backend unit & integration tests (enforces >= 80% coverage)
 cd apps/api
 pytest -v --cov=app --cov=../../services/document-worker/worker --cov-fail-under=80
-```
 
-### Frontend & Monorepo Checks
-```bash
+# 3. Frontend & shared package checks
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
----
-
-## Security & Licensing
-
-- **Project License:** Licensed under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
-- **AGPL-3.0 Isolation ([ADR-001](docs/decisions/ADR-001-pymupdf-isolation.md)):** `PyMuPDF` is strictly prohibited from `apps/api` and isolated behind `services/document-worker/worker/pdf_engine.py`. Permissive fallbacks (`pikepdf`, `pypdf`, `ReportLab`, `Pillow`) power all core PDF operations when `PDF_ENGINE_ALLOW_PYMUPDF=false`.
-- **Container Hardening:** The `document-worker` container runs with `read_only: true`, a bounded `/tmp` tmpfs, and `no-new-privileges:true`.
+You can also use the [`Makefile`](Makefile) shortcuts (`make dev`, `make dev-api`, `make dev-web`, `make migrate`, `make lint`, `make test`).
 
 ---
 
 ## Roadmap
 
-- **Phase 1 (Current):** Core document workspace, guest mode, immutable versioning, PDF toolkit (merge/split/rotate/reorder/extract/delete/watermark/page-numbers/protect/unlock/exact-KB compress), photo & signature resizer, camera scan to PDF, bilingual EN/TA UI, and approval-gated command bar.
-- **Upcoming Phases:** RAG semantic search over `pgvector` embeddings, document Q&A chat, Office/Markdown format conversions, and multi-step LLM workflow execution.
+- [x] **Phase 1 — Foundation & Core PDF/Student Suite:** Monorepo setup, Argon2id/JWT auth + guest mode, chunked uploads + ClamAV/validation, immutable `v1..vN` versioning, PDF.js workspace, bilingual EN/தமிழ் UI, PDF merge/split/page-ops/watermark/page-numbers/protect/unlock, exact-KB compression, exam photo & signature resizer, camera scan to PDF, and approval-gated command bar.
+- [ ] **Phase 2 — Document Intelligence & RAG:** `pgvector` chunk embeddings, semantic search, citation-backed Q&A over uploaded documents.
+- [ ] **Phase 3 — Format Conversions:** High-fidelity DOCX / XLSX / PPTX / Markdown ↔ PDF pipelines.
+- [ ] **Phase 4 — Multi-Step LLM Agent Workflows:** Chained tool execution with live plan inspection and granular approvals.
 
 ---
 
+## License
+
+- **Project Code:** [Apache License 2.0](LICENSE)
+- **Third-Party Worker Note:** Permissive engines (`pikepdf` MPL-2.0, `pypdf` BSD-3-Clause, `ReportLab` BSD, `Pillow` HPND) power all core operations when `PDF_ENGINE_ALLOW_PYMUPDF=false`. See [ADR-001](docs/decisions/ADR-001-pymupdf-isolation.md) for details.
+
 <div align="center">
 
-Made by [Nanthish](https://github.com/nanthishvaran17)
+<br />
+
+Crafted with care by **[Nanthish](https://github.com/nanthishvaran17)** • Star the repo if you find it useful!
 
 </div>
