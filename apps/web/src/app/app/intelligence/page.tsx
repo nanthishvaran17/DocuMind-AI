@@ -23,6 +23,7 @@ import type {
   SemanticSearchHit,
 } from "@documind/types";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/providers";
 import { apiRequest, ensureAuthSession } from "@/lib/api";
@@ -195,6 +196,13 @@ export default function IntelligencePage() {
   return (
     <AppShell>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "AI Intelligence" },
+          ]}
+        />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-mono text-indigo-400">

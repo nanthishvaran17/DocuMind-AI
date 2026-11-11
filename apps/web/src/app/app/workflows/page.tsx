@@ -15,6 +15,7 @@ import {
 import type { AgentCommandPlan, DocumentItem } from "@documind/types";
 import { AgentWorkflowCard } from "@/components/AgentWorkflowCard";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { apiRequest, ensureAuthSession } from "@/lib/api";
 
 export default function WorkflowsPage() {
@@ -49,6 +50,13 @@ export default function WorkflowsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Workspace", href: "/app" },
+            { label: "Workflows" },
+          ]}
+        />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-mono text-fuchsia-400">

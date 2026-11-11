@@ -28,6 +28,7 @@ import type {
 } from "@documind/types";
 import { CONVERSION_TARGETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";
@@ -266,6 +267,13 @@ function ConvertStudioContent() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Workspace", href: "/app" },
+          { label: "Format Converter" },
+        ]}
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5">
