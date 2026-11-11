@@ -15,6 +15,8 @@ ALLOWED_EXTENSIONS: dict[str, str] = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -71,11 +73,11 @@ def validate_upload_bytes(filename: str, data: bytes, max_bytes: int) -> Validat
         if not data.startswith(b"PK\x03\x04"):
             raise ValueError(f"Invalid {ext.upper()} archive: magic bytes mismatch.")
         _verify_ooxml_zip(data, ext)
-    elif ext == ".txt":
+    elif ext in (".txt", ".md", ".markdown"):
         try:
             data.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise ValueError("Text file must be valid UTF-8.") from exc
+            raise ValueError("Text/Markdown file must be valid UTF-8.") from exc
 
     return ValidatedUpload(
         safe_filename=safe_name,

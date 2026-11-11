@@ -7,10 +7,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.deps import ActorContext, get_current_actor, get_owned_document
 from app.core.config import get_settings
 from app.db.models import ConversionJob, Document, DocumentVersion, UserSession
@@ -18,8 +14,11 @@ from app.db.session import get_db
 from app.schemas.common import ok_response
 from app.schemas.tools import (
     CompressRequest,
+    ConvertRequest,
+    ExtractTablesRequest,
     JobOut,
     MergeRequest,
+    OcrRequest,
     PageNumbersRequest,
     PageTransformRequest,
     ProtectRequest,
@@ -30,8 +29,17 @@ from app.schemas.tools import (
 from app.services.audit import record_audit_log
 from app.services.clamav import scan_bytes_for_malware
 from app.services.file_validation import validate_upload_bytes
-from app.services.job_runner import dispatch_job, pdf_engine, populate_pdf_version_assets
+from app.services.job_runner import (
+    converter,
+    dispatch_job,
+    pdf_engine,
+    populate_pdf_version_assets,
+)
 from app.services.storage import get_storage
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from worker import conversion_engine
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -574,3 +582,131 @@ async def camera_scan_to_pdf(
             "metrics": metrics,
         }
     )
+
+
+@router.get("/convert/supported")
+async def get_supported_conversions() -> dict:
+    """Return the supported format conversion matrix (Phase 3)."""
+    return ok_response(
+        {
+            "matrix": converter.SUPPORTED_CONVERSION_MATRIX,
+            "mime_types": converter.MIME_BY_FORMAT,
+        }
+    )
+
+
+@router.post("/convert", status_code=status.HTTP_202_ACCEPTED)
+async def convert_document_tool(
+    payload: ConvertRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Convert DOCX / XLSX / PPTX / Markdown <-> PDF asynchronously via ConversionJob."""
+    doc = await get_owned_document(db, payload.document_id, actor)
+    ver = await _get_latest_version(db, doc)
+    src_fmt = converter.infer_source_format(doc.name, ver.mime_type)
+    allowed = converter.SUPPORTED_CONVERSION_MATRIX.get(src_fmt, [])
+    if payload.target_format not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot convert '{src_fmt.upper()}' to '{payload.target_format.upper()}'. "
+                f"Supported targets: {', '.join(t.upper() for t in allowed) or 'none'}."
+            ),
+        )
+
+    job = await _enqueue_pdf_job(
+        db=db,
+        actor=actor,
+        source_version=ver,
+        job_type="convert",
+        params={
+            "source_format": src_fmt,
+            "target_format": payload.target_format,
+            "mode": payload.mode,
+            "pptx_mode": payload.pptx_mode,
+            "output_name": payload.output_name,
+        },
+        idempotency_key=idempotency_key,
+    )
+    return ok_response(_job_to_out(job))
+
+
+@router.post("/ocr", status_code=status.HTTP_202_ACCEPTED)
+async def run_ocr_tool(
+    payload: OcrRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Run OCR (English / Tamil) on a PDF or image to produce a searchable PDF."""
+    doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf" and not doc.mime_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="OCR requires a PDF or image (PNG/JPG) document.",
+        )
+    ver = await _get_latest_version(db, doc)
+    job = await _enqueue_pdf_job(
+        db=db,
+        actor=actor,
+        source_version=ver,
+        job_type="ocr",
+        params={
+            "language": payload.language,
+            "force_ocr": payload.force_ocr,
+            "output_name": payload.output_name,
+        },
+        idempotency_key=idempotency_key,
+    )
+    return ok_response(_job_to_out(job))
+
+
+@router.post("/extract-tables")
+async def extract_tables_tool(
+    payload: ExtractTablesRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Extract structured tables from PDF either inline as JSON or asynchronously as XLSX/CSV."""
+    doc = await get_owned_document(db, payload.document_id, actor)
+    if doc.mime_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Table extraction supports PDF documents.")
+    ver = await _get_latest_version(db, doc)
+
+    if payload.output_format == "json":
+        raw_bytes = await get_storage().get_bytes(ver.storage_key)
+        tables = await asyncio.to_thread(conversion_engine.extract_tables_from_pdf, raw_bytes)
+        return ok_response(
+            {
+                "document_id": doc.id,
+                "document_name": doc.name,
+                "tables_count": len(tables),
+                "tables": [
+                    {
+                        "page_no": t["page"],
+                        "table_index": t["table_index"],
+                        "detection_strategy": t["strategy"],
+                        "rows_count": t["rows_count"],
+                        "cols_count": t["cols_count"],
+                        "rows": t["rows"],
+                    }
+                    for t in tables
+                ],
+            }
+        )
+
+    job = await _enqueue_pdf_job(
+        db=db,
+        actor=actor,
+        source_version=ver,
+        job_type="extract_tables",
+        params={
+            "output_format": payload.output_format,
+            "output_name": payload.output_name,
+        },
+        idempotency_key=idempotency_key,
+    )
+    return ok_response(_job_to_out(job))

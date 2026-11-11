@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from sqlalchemy import text
-
 from app.db.session import AsyncSessionLocal
 from app.schemas.common import ok_response
 from app.services.clamav import clamav_health
 from app.services.storage import get_storage
+from fastapi import APIRouter, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from sqlalchemy import text
 
 router = APIRouter(tags=["observability"])
 

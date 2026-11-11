@@ -13,7 +13,11 @@ export function formatBytes(bytes: number): string {
 
 export function formatRelativeExpiry(isoDate: string | null): string | null {
   if (!isoDate) return null;
-  const diffMs = new Date(isoDate).getTime() - Date.now();
+  const hasTz = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(isoDate.trim());
+  const normalized = hasTz ? isoDate.trim() : `${isoDate.trim()}Z`;
+  const parsed = new Date(normalized).getTime();
+  if (Number.isNaN(parsed)) return null;
+  const diffMs = parsed - Date.now();
   if (diffMs <= 0) return "Expired";
   const mins = Math.ceil(diffMs / 60000);
   if (mins < 60) return `${mins}m left`;
@@ -82,8 +86,25 @@ export const ALLOWED_UPLOAD_EXTENSIONS = [
   ".docx",
   ".xlsx",
   ".pptx",
+  ".md",
   ".txt",
   ".png",
   ".jpg",
   ".jpeg",
 ] as const;
+
+export const CONVERSION_TARGETS: Record<
+  string,
+  readonly ("pdf" | "docx" | "xlsx" | "pptx" | "md" | "txt" | "html" | "csv" | "json" | "png" | "jpg")[]
+> = {
+  pdf: ["docx", "xlsx", "pptx", "md", "txt", "html", "csv", "json", "png", "jpg"],
+  docx: ["pdf", "md", "txt", "html", "png", "jpg"],
+  xlsx: ["pdf", "csv", "html", "png", "jpg"],
+  pptx: ["pdf", "png", "jpg"],
+  md: ["pdf", "docx", "html", "txt"],
+  txt: ["pdf", "docx", "html", "md"],
+  html: ["pdf", "docx", "md", "txt"],
+  png: ["pdf"],
+  jpg: ["pdf"],
+  jpeg: ["pdf"],
+};

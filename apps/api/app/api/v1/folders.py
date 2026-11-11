@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.deps import ActorContext, require_authenticated_user
 from app.db.models import Folder
 from app.db.session import get_db
 from app.schemas.common import ok_response
 from app.schemas.documents import FolderCreate, FolderOut, FolderUpdate
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/folders", tags=["folders"])
 

@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob } from "@/lib/api";
+import { usePreferencesStore } from "@/stores/preferences-store";
 
 interface ResizeResponse {
   document_id: string;
@@ -28,12 +29,15 @@ interface ResizeResponse {
 
 export default function PhotoResizerPage() {
   const { pushToast } = useToast();
+  const defaultPhotoPreset = usePreferencesStore((s) => s.default_photo_preset);
+  const initialPreset =
+    PHOTO_RESIZE_PRESETS.find((p) => p.id === defaultPhotoPreset) ?? PHOTO_RESIZE_PRESETS[0];
   const [file, setFile] = useState<File | null>(null);
-  const [presetId, setPresetId] = useState<string>(PHOTO_RESIZE_PRESETS[0].id);
-  const [widthPx, setWidthPx] = useState<number>(PHOTO_RESIZE_PRESETS[0].widthPx);
-  const [heightPx, setHeightPx] = useState<number>(PHOTO_RESIZE_PRESETS[0].heightPx);
-  const [dpi, setDpi] = useState<number>(PHOTO_RESIZE_PRESETS[0].dpi);
-  const [maxKb, setMaxKb] = useState<number>(PHOTO_RESIZE_PRESETS[0].maxKb);
+  const [presetId, setPresetId] = useState<string>(initialPreset.id);
+  const [widthPx, setWidthPx] = useState<number>(initialPreset.widthPx);
+  const [heightPx, setHeightPx] = useState<number>(initialPreset.heightPx);
+  const [dpi, setDpi] = useState<number>(initialPreset.dpi);
+  const [maxKb, setMaxKb] = useState<number>(initialPreset.maxKb);
   const [enhanceBg, setEnhanceBg] = useState(false);
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState<{
@@ -102,96 +106,109 @@ export default function PhotoResizerPage() {
     <AppShell>
       <div className="max-w-3xl mx-auto space-y-6">
         <PrivacyBadge />
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <ImageIcon className="h-5 w-5 text-violet-400" />
-            <span>Student Photo & Signature Resizer</span>
-          </h1>
-          <p className="text-sm text-[var(--dm-muted)] mt-1">
-            Exact pixel, DPI, and KB sizing for Passport, GATE, JEE, UPSC, TNPSC, and scholarship portals.
-          </p>
+        <div className="flex items-start gap-3.5">
+          <div className="h-11 w-11 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center text-violet-500 dark:text-violet-400 shrink-0">
+            <ImageIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold">Student Photo &amp; Signature Resizer</h1>
+            <p className="text-sm text-[var(--dm-muted)] mt-0.5">
+              Exact pixel, DPI, and KB sizing for Passport, GATE, JEE, UPSC, TNPSC, and scholarship portals.
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="dm-card p-6 space-y-5">
-          <label className="block border border-dashed border-[var(--dm-border)] rounded-xl p-6 text-center cursor-pointer hover:border-indigo-500/50">
+        <form onSubmit={handleSubmit} className="dm-card p-6 space-y-6">
+          <label className="block border-2 border-dashed border-[var(--dm-border)] rounded-2xl p-7 text-center cursor-pointer hover:border-violet-500/60 hover:bg-violet-500/5 transition-all">
             <input
               type="file"
               accept="image/png,image/jpeg"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="hidden"
             />
-            <Upload className="h-6 w-6 text-violet-400 mx-auto mb-2" />
-            <p className="text-sm font-medium">{file ? file.name : "Upload JPG or PNG photo / signature"}</p>
-            {file && <p className="text-xs font-mono text-[var(--dm-muted)] mt-1">{formatBytes(file.size)}</p>}
+            <div className="h-11 w-11 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center mx-auto mb-3">
+              <Upload className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+            </div>
+            <p className="text-sm font-semibold">
+              {file ? file.name : "Upload JPG or PNG photo / signature"}
+            </p>
+            {file && (
+              <p className="text-xs font-mono text-violet-400 mt-1">{formatBytes(file.size)}</p>
+            )}
           </label>
 
-          <div className="grid sm:grid-cols-3 gap-2">
-            {PHOTO_RESIZE_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => selectPreset(p.id)}
-                className={`p-3 rounded-lg border text-left text-xs ${
-                  presetId === p.id
-                    ? "border-indigo-500 bg-indigo-500/15"
-                    : "border-[var(--dm-border)]"
-                }`}
-              >
-                <p className="font-semibold">{p.label}</p>
-                <p className="font-mono text-[var(--dm-muted)] mt-1">
-                  {p.widthPx}×{p.heightPx}px • ≤{p.maxKb}KB
-                </p>
-              </button>
-            ))}
+          <div className="space-y-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--dm-muted)]">
+              Exam &amp; Portal Presets
+            </p>
+            <div className="grid sm:grid-cols-3 gap-2.5">
+              {PHOTO_RESIZE_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => selectPreset(p.id)}
+                  className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
+                    presetId === p.id
+                      ? "border-violet-500 bg-violet-500/15 shadow-xs"
+                      : "border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-violet-500/40"
+                  }`}
+                >
+                  <p className="font-semibold">{p.label}</p>
+                  <p className="font-mono text-[var(--dm-muted)] mt-1">
+                    {p.widthPx}×{p.heightPx}px • ≤{p.maxKb}KB
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <label className="space-y-1">
-              <span className="text-[var(--dm-muted)]">Width (px)</span>
+            <label className="space-y-1.5">
+              <span className="text-[var(--dm-muted)] font-medium">Width (px)</span>
               <input
                 type="number"
                 value={widthPx}
                 onChange={(e) => setWidthPx(Number(e.target.value))}
-                className="w-full rounded border border-[var(--dm-border)] bg-[var(--dm-bg)] px-2.5 py-1.5 font-mono"
+                className="dm-input w-full px-3 py-2 font-mono"
               />
             </label>
-            <label className="space-y-1">
-              <span className="text-[var(--dm-muted)]">Height (px)</span>
+            <label className="space-y-1.5">
+              <span className="text-[var(--dm-muted)] font-medium">Height (px)</span>
               <input
                 type="number"
                 value={heightPx}
                 onChange={(e) => setHeightPx(Number(e.target.value))}
-                className="w-full rounded border border-[var(--dm-border)] bg-[var(--dm-bg)] px-2.5 py-1.5 font-mono"
+                className="dm-input w-full px-3 py-2 font-mono"
               />
             </label>
-            <label className="space-y-1">
-              <span className="text-[var(--dm-muted)]">DPI</span>
+            <label className="space-y-1.5">
+              <span className="text-[var(--dm-muted)] font-medium">DPI</span>
               <input
                 type="number"
                 value={dpi}
                 onChange={(e) => setDpi(Number(e.target.value))}
-                className="w-full rounded border border-[var(--dm-border)] bg-[var(--dm-bg)] px-2.5 py-1.5 font-mono"
+                className="dm-input w-full px-3 py-2 font-mono"
               />
             </label>
-            <label className="space-y-1">
-              <span className="text-[var(--dm-muted)]">Max KB</span>
+            <label className="space-y-1.5">
+              <span className="text-[var(--dm-muted)] font-medium">Max KB</span>
               <input
                 type="number"
                 value={maxKb}
                 onChange={(e) => setMaxKb(Number(e.target.value))}
-                className="w-full rounded border border-[var(--dm-border)] bg-[var(--dm-bg)] px-2.5 py-1.5 font-mono"
+                className="dm-input w-full px-3 py-2 font-mono"
               />
             </label>
           </div>
 
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex items-center gap-2.5 text-xs p-3 rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] cursor-pointer">
             <input
               type="checkbox"
               checked={enhanceBg}
               onChange={(e) => setEnhanceBg(e.target.checked)}
-              className="rounded"
+              className="rounded accent-indigo-500"
             />
-            <span>Signature paper cleanup (boost ink contrast & whiten background)</span>
+            <span>Signature paper cleanup (boost ink contrast &amp; whiten background)</span>
           </label>
 
           <button
@@ -205,27 +222,30 @@ export default function PhotoResizerPage() {
         </form>
 
         {output && (
-          <div className="dm-card p-6 flex flex-col sm:flex-row items-center gap-6">
+          <div className="dm-elevated p-6 flex flex-col sm:flex-row items-center gap-6">
             <img
               src={output.previewBlobUrl}
               alt="Resized result"
-              className="w-36 h-auto rounded-lg border border-[var(--dm-border)] bg-white"
+              className="w-36 h-auto rounded-xl border border-[var(--dm-border)] bg-white shadow-md"
             />
-            <div className="flex-1 space-y-2 text-xs">
-              <p className="text-sm font-semibold">Output Ready</p>
+            <div className="flex-1 space-y-2.5 text-xs">
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 dark:text-emerald-300 font-medium">
+                Spec Verified
+              </span>
+              <p className="text-base font-semibold">Output Ready</p>
               <p className="font-mono text-[var(--dm-muted)]">
                 Dimensions: {output.data.metrics.width_px}×{output.data.metrics.height_px}px @ {output.data.metrics.dpi} DPI
               </p>
               <p className="font-mono text-[var(--dm-muted)]">
                 Before: {formatBytes(output.data.metrics.before_bytes)} → After:{" "}
-                <span className="text-indigo-400 font-semibold">
+                <span className="text-indigo-500 dark:text-indigo-300 font-semibold">
                   {formatBytes(output.data.metrics.after_bytes)}
                 </span>
               </p>
               <button
                 type="button"
                 onClick={downloadOutput}
-                className="dm-primary-btn px-4 py-2 text-xs font-medium inline-flex items-center gap-1.5 mt-2"
+                className="dm-primary-btn px-4 py-2 text-xs font-medium inline-flex items-center gap-1.5 mt-1"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Download {output.data.metrics.format}</span>

@@ -4,9 +4,8 @@ import asyncio
 import time
 from collections import defaultdict, deque
 
-from fastapi import HTTPException, Request, status
-
 from app.core.config import get_settings
+from fastapi import HTTPException, Request, status
 
 
 class InMemoryRateLimiter:

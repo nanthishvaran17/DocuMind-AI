@@ -108,8 +108,10 @@ def test_photo_resizer_and_camera_scan() -> None:
     with Image.open(io.BytesIO(resized)) as img:
         assert img.size == (413, 531)
 
-    scanned_pdf, scan_metrics = pdf_engine.images_to_scanned_pdf(
-        [photo, photo], enhance_mode="document"
-    )
-    assert scan_metrics["page_count"] == 2
-    assert len(PdfReader(io.BytesIO(scanned_pdf)).pages) == 2
+    for mode in ("document", "grayscale", "original"):
+        scanned_pdf, scan_metrics = pdf_engine.images_to_scanned_pdf(
+            [photo, photo], enhance_mode=mode
+        )
+        assert scan_metrics["page_count"] == 2
+        assert scan_metrics["enhance_mode"] == mode
+        assert len(PdfReader(io.BytesIO(scanned_pdf)).pages) == 2

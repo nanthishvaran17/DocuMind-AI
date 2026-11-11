@@ -14,6 +14,31 @@ export class ApiError extends Error {
   }
 }
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+export async function tryRefreshSession(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = (await resp.json().catch(() => null)) as ApiEnvelope<AuthSession> | null;
+      if (resp.ok && body?.data?.access_token) {
+        useAuthStore.getState().setSession(body.data);
+        return body.data.access_token;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
 export async function ensureAuthSession(): Promise<string> {
   const store = useAuthStore.getState();
   if (store.accessToken) {
@@ -24,6 +49,11 @@ export async function ensureAuthSession(): Promise<string> {
     } else {
       return store.accessToken;
     }
+  }
+
+  const refreshed = await tryRefreshSession();
+  if (refreshed) {
+    return refreshed;
   }
 
   const resp = await fetch(`${API_BASE}/auth/guest`, {
@@ -76,17 +106,32 @@ export async function apiRequest<T>(
   }))) as ApiEnvelope<T>;
 
   if (!res.ok || payload.error) {
-    if (res.status === 401 && !skipAuth && ensureGuest) {
-      useAuthStore.getState().clearSession();
-      const freshToken = await ensureAuthSession();
-      reqHeaders.set("Authorization", `Bearer ${freshToken}`);
-      const retry = await fetch(`${API_BASE}${path}`, {
-        ...rest,
-        headers: reqHeaders,
-        credentials: "include",
-      });
-      const retryBody = (await retry.json()) as ApiEnvelope<T>;
-      if (retry.ok && !retryBody.error) return retryBody;
+    if (res.status === 401 && !skipAuth) {
+      let freshToken = await tryRefreshSession();
+      if (!freshToken && ensureGuest) {
+        useAuthStore.getState().clearSession();
+        freshToken = await ensureAuthSession();
+      } else if (!freshToken) {
+        useAuthStore.getState().clearSession();
+      }
+      if (freshToken) {
+        reqHeaders.set("Authorization", `Bearer ${freshToken}`);
+        const freshCsrf = useAuthStore.getState().csrfToken;
+        if (freshCsrf) {
+          reqHeaders.set("X-CSRF-Token", freshCsrf);
+        }
+        const retry = await fetch(`${API_BASE}${path}`, {
+          ...rest,
+          headers: reqHeaders,
+          credentials: "include",
+        });
+        const retryBody = (await retry.json().catch(() => ({
+          data: null,
+          error: { title: "Network Error", status: retry.status, detail: "Invalid JSON response" },
+          meta: { request_id: "-" },
+        }))) as ApiEnvelope<T>;
+        if (retry.ok && !retryBody.error) return retryBody;
+      }
     }
     throw new ApiError(
       payload.error?.detail || `Request failed (${res.status})`,
@@ -99,10 +144,21 @@ export async function apiRequest<T>(
 
 export async function fetchAuthorizedBlob(path: string): Promise<Blob> {
   const token = await ensureAuthSession();
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
+  if (res.status === 401) {
+    let freshToken = await tryRefreshSession();
+    if (!freshToken) {
+      useAuthStore.getState().clearSession();
+      freshToken = await ensureAuthSession();
+    }
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${freshToken}` },
+      credentials: "include",
+    });
+  }
   if (!res.ok) {
     throw new ApiError(`Failed to load file (${res.status})`, res.status);
   }

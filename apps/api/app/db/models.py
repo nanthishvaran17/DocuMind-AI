@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from app.db.types import PortableINET, PortableJSON, PortableUUID, PortableVector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -19,8 +20,6 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
-from app.db.types import PortableINET, PortableJSON, PortableUUID
 
 
 def utcnow() -> datetime:
@@ -63,6 +62,22 @@ class User(Base, TimestampMixin):
     is_student_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     student_email_domain: Mapped[str | None] = mapped_column(String(200), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class UserPreference(Base, TimestampMixin):
+    __tablename__ = "user_preferences"
+
+    id: Mapped[str] = mapped_column(PortableUUID(), primary_key=True, default=new_uuid)
+    user_id: Mapped[str] = mapped_column(
+        PortableUUID(),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    preferences: Mapped[dict[str, Any]] = mapped_column(
+        PortableJSON(), default=dict, nullable=False
+    )
 
 
 class UserSession(Base, TimestampMixin):
@@ -320,9 +335,93 @@ class AgentRun(Base, TimestampMixin):
         index=True,
     )
     command_text: Mapped[str] = mapped_column(Text, nullable=False)
+    document_ids: Mapped[list[str]] = mapped_column(PortableJSON(), default=list, nullable=False)
     plan: Mapped[list[dict[str, Any]]] = mapped_column(PortableJSON(), default=list, nullable=False)
+    current_step_no: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    execution_log: Mapped[list[dict[str, Any]]] = mapped_column(
+        PortableJSON(), default=list, nullable=False
+    )
     status: Mapped[str] = mapped_column(String(24), default="awaiting_approval", nullable=False)
     final_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint("version_id", "chunk_index", name="uq_doc_chunk_version_idx"),
+        Index("ix_document_chunks_doc_ver", "document_id", "version_id"),
+    )
+
+    id: Mapped[str] = mapped_column(PortableUUID(), primary_key=True, default=new_uuid)
+    document_id: Mapped[str] = mapped_column(
+        PortableUUID(), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version_id: Mapped[str] = mapped_column(
+        PortableUUID(),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    section_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    char_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    embedding: Mapped[list[float]] = mapped_column(PortableVector(384), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(
+        String(120), default="local-semantic-hash-384", nullable=False
+    )
+    meta: Mapped[dict[str, Any]] = mapped_column(PortableJSON(), default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+
+class QaThread(Base, TimestampMixin):
+    __tablename__ = "qa_threads"
+
+    id: Mapped[str] = mapped_column(PortableUUID(), primary_key=True, default=new_uuid)
+    user_id: Mapped[str | None] = mapped_column(
+        PortableUUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    guest_session_id: Mapped[str | None] = mapped_column(
+        PortableUUID(),
+        ForeignKey("user_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    document_id: Mapped[str | None] = mapped_column(
+        PortableUUID(), ForeignKey("documents.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), default="Document Q&A", nullable=False)
+
+    messages: Mapped[list[QaMessage]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="QaMessage.created_at.asc()",
+    )
+
+
+class QaMessage(Base):
+    __tablename__ = "qa_messages"
+
+    id: Mapped[str] = mapped_column(PortableUUID(), primary_key=True, default=new_uuid)
+    thread_id: Mapped[str] = mapped_column(
+        PortableUUID(), ForeignKey("qa_threads.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(24), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(
+        PortableJSON(), default=list, nullable=False
+    )
+    model_used: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+    thread: Mapped[QaThread] = relationship(back_populates="messages")
 
 
 class AuditLog(Base):
@@ -348,4 +447,52 @@ class AuditLog(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+
+class ConversionQualityReport(Base, TimestampMixin):
+    __tablename__ = "conversion_quality_reports"
+
+    id: Mapped[str] = mapped_column(PortableUUID(), primary_key=True, default=new_uuid)
+    job_id: Mapped[str] = mapped_column(
+        PortableUUID(),
+        ForeignKey("conversion_jobs.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    source_version_id: Mapped[str] = mapped_column(
+        PortableUUID(), ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    output_version_id: Mapped[str] = mapped_column(
+        PortableUUID(), ForeignKey("document_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    source_format: Mapped[str] = mapped_column(String(24), nullable=False)
+    target_format: Mapped[str] = mapped_column(String(24), nullable=False)
+    conversion_mode: Mapped[str] = mapped_column(String(32), default="editable", nullable=False)
+    source_page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    converted_page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    page_count_match: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    char_similarity: Mapped[float] = mapped_column(Double, default=0.0, nullable=False)
+    word_similarity: Mapped[float] = mapped_column(Double, default=0.0, nullable=False)
+    mean_ssim: Mapped[float | None] = mapped_column(Double, nullable=True)
+    ssim_status: Mapped[str] = mapped_column(
+        String(48), default="unavailable", nullable=False
+    )
+    source_table_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    converted_table_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    source_image_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    converted_image_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    missing_text_snippets: Mapped[list[str]] = mapped_column(
+        PortableJSON(), default=list, nullable=False
+    )
+    font_warnings: Mapped[list[dict[str, Any]]] = mapped_column(
+        PortableJSON(), default=list, nullable=False
+    )
+    warnings: Mapped[list[str]] = mapped_column(PortableJSON(), default=list, nullable=False)
+    page_metrics: Mapped[list[dict[str, Any]]] = mapped_column(
+        PortableJSON(), default=list, nullable=False
+    )
+    page_image_keys: Mapped[dict[str, Any]] = mapped_column(
+        PortableJSON(), default=dict, nullable=False
     )

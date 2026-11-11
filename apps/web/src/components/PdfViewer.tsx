@@ -35,7 +35,7 @@ export function PdfViewer({
         const blob = await fetchAuthorizedBlob(`/documents/${documentId}/preview?v=${versionNo}`);
         const bytes = new Uint8Array(await blob.arrayBuffer());
         const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const doc = await pdfjs.getDocument({ data: bytes }).promise;
         if (cancelled) {

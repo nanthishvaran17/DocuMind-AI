@@ -22,6 +22,8 @@ celery_app.conf.update(
     task_time_limit=180,
     task_routes={
         "worker.tasks.run_pdf_job": {"queue": "convert"},
+        "worker.tasks.run_conversion_job": {"queue": "convert"},
+        "worker.tasks.run_ocr_job": {"queue": "ocr"},
         "worker.tasks.cleanup_expired_guests": {"queue": "default"},
     },
 )

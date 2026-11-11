@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
 from app.db.models import Document, DocumentVersion
 from app.db.session import AsyncSessionLocal
 from app.services.storage import get_storage
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 
 async def hard_delete_document(db: AsyncSession, doc: Document) -> None:

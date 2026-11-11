@@ -10,6 +10,11 @@ from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.types import TypeDecorator
 
+try:
+    from pgvector.sqlalchemy import Vector as PGVector
+except ImportError:  # pragma: no cover
+    PGVector = None  # type: ignore[assignment, misc]
+
 
 class PortableUUID(TypeDecorator[str]):
     """Stores UUID natively on PostgreSQL and as CHAR(36) on SQLite."""
@@ -71,3 +76,34 @@ class PortableINET(TypeDecorator[str]):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(PG_INET())
         return dialect.type_descriptor(String(45))
+
+
+class PortableVector(TypeDecorator[list[float]]):
+    """Stores pgvector Vector(dim) on PostgreSQL and JSON float list TEXT on SQLite."""
+
+    impl = Text
+    cache_ok = True
+
+    def __init__(self, dim: int = 384) -> None:
+        super().__init__()
+        self.dim = dim
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        if dialect.name == "postgresql" and PGVector is not None:
+            return dialect.type_descriptor(PGVector(self.dim))
+        return dialect.type_descriptor(Text())
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        if value is None:
+            return None
+        vec = [float(x) for x in value]
+        if dialect.name == "postgresql":
+            return vec
+        return json.dumps(vec)
+
+    def process_result_value(self, value: Any, dialect: Any) -> list[float] | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return [float(x) for x in json.loads(value)]
+        return [float(x) for x in value]

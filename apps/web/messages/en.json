@@ -34,6 +34,8 @@
     "searchPlaceholder": "Search your files...",
     "trash": "Trash",
     "library": "Library",
+    "intelligence": "AI Search & Q&A",
+    "workflows": "Agent Workflows",
     "tools": "Tools",
     "settings": "Settings",
     "offlineBanner": "You are offline. Viewing cached workspace; uploads and PDF tools require an internet connection.",
@@ -48,6 +50,10 @@
     "scan": "Camera Scan to PDF",
     "scanDesc": "Turn phone photos of notes into clean multi-page PDFs.",
     "merge": "Merge & Split",
-    "mergeDesc": "Combine handouts or split chapters non-destructively."
+    "mergeDesc": "Combine handouts or split chapters non-destructively.",
+    "convert": "Format Converter",
+    "convertDesc": "High-fidelity DOCX, XLSX, PPTX, HTML, MD & Images <-> PDF.",
+    "ocr": "OCR (EN + தமிழ்)",
+    "ocrDesc": "Turn scanned PDFs and photos into searchable text & PDF."
   }
 }

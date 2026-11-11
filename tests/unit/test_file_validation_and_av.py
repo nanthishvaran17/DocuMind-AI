@@ -4,10 +4,9 @@ import io
 import zipfile
 
 import pytest
-from PIL import Image
-
 from app.services.clamav import EICAR_SIGNATURE, scan_bytes_for_malware
 from app.services.file_validation import sanitize_filename, validate_upload_bytes
+from PIL import Image
 
 
 def test_validate_rejects_magic_byte_spoofing() -> None:

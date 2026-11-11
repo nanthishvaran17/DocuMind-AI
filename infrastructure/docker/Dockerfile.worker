@@ -6,7 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH="/app/apps/api:/app/services/document-worker"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 fonts-noto-core && \
+    libpq5 fonts-noto-core fonts-noto-extra \
+    libreoffice-writer libreoffice-calc libreoffice-impress \
+    tesseract-ocr tesseract-ocr-eng tesseract-ocr-tam \
+    poppler-utils && \
     rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 10001 documind
@@ -22,4 +25,4 @@ COPY services/document-worker /app/services/document-worker
 WORKDIR /app/services/document-worker
 USER documind
 
-CMD ["celery", "-A", "worker.celery_app", "worker", "-Q", "default,convert", "--loglevel=info", "--concurrency=2"]
+CMD ["celery", "-A", "worker.celery_app", "worker", "-Q", "default,convert,ocr", "--loglevel=info", "--concurrency=2"]

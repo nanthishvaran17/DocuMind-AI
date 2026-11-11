@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { AuthSession } from "@documind/types";
 import { API_BASE, apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -66,11 +66,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[var(--dm-bg)] dm-ambient-bg">
       <Navbar />
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="dm-card max-w-md w-full p-6 sm:p-8 space-y-5">
-          <div className="space-y-1">
+      <main className="flex-1 flex items-center justify-center p-4 dm-grid-bg">
+        <div className="dm-elevated max-w-md w-full p-7 sm:p-8 space-y-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-[11px] font-medium text-indigo-500 dark:text-indigo-300">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Private &amp; Version-Safe Studio</span>
+            </div>
             <h1 className="text-2xl font-semibold">Sign in to DocuMind AI</h1>
             <p className="text-sm text-[var(--dm-muted)]">
               Access your saved folders, version history, and student workspace.
@@ -78,24 +82,24 @@ export default function LoginPage() {
           </div>
 
           {serverError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-400">
               {serverError}
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium">Email</label>
               <input
                 type="email"
                 {...register("email")}
                 placeholder="you@college.edu.in"
-                className="w-full rounded-lg border border-[var(--dm-border)] bg-[var(--dm-bg)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="dm-input w-full px-3.5 py-2.5 text-sm"
               />
               {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium">Password</label>
                 <Link href="/forgot-password" className="text-xs text-indigo-400 hover:underline">
@@ -105,7 +109,7 @@ export default function LoginPage() {
               <input
                 type="password"
                 {...register("password")}
-                className="w-full rounded-lg border border-[var(--dm-border)] bg-[var(--dm-bg)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="dm-input w-full px-3.5 py-2.5 text-sm"
               />
               {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
             </div>
@@ -120,25 +124,25 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
             <a
               href={`${API_BASE}/auth/google`}
-              className="text-center py-2 text-xs rounded-lg border border-[var(--dm-border)] hover:bg-[var(--dm-elevated)]"
+              className="text-center py-2.5 text-xs font-medium rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-[var(--dm-border-strong)] transition-colors"
             >
               Google OAuth
             </a>
             <button
               type="button"
               onClick={startGuest}
-              className="py-2 text-xs rounded-lg border border-[var(--dm-border)] hover:bg-[var(--dm-elevated)]"
+              className="py-2.5 text-xs font-medium rounded-xl border border-[var(--dm-border)] bg-[var(--dm-subtle)] hover:border-[var(--dm-border-strong)] transition-colors"
             >
-              Continue as Guest (1h)
+              Guest Mode (1h)
             </button>
           </div>
 
           <p className="text-xs text-center text-[var(--dm-muted)]">
             New here?{" "}
-            <Link href="/register" className="text-indigo-400 hover:underline">
+            <Link href="/register" className="text-indigo-400 hover:underline font-medium">
               Create a free account
             </Link>
           </p>

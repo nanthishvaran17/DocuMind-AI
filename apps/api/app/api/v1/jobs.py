@@ -4,17 +4,17 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.api.deps import ActorContext, get_current_actor
+from app.db.models import ConversionJob, ConversionQualityReport
+from app.db.session import get_db
+from app.schemas.common import ok_response
+from app.schemas.tools import ConversionQualityReportOut, JobOut
+from app.services.job_runner import dispatch_job, progress_bus
+from app.services.storage import get_storage
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.api.deps import ActorContext, get_current_actor
-from app.db.models import ConversionJob
-from app.db.session import get_db
-from app.schemas.common import ok_response
-from app.schemas.tools import JobOut
-from app.services.job_runner import dispatch_job, progress_bus
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -148,3 +148,92 @@ async def retry_job(
     await db.commit()
     await dispatch_job(job.id)
     return ok_response(_job_dict(job))
+
+
+@router.get("/{job_id}/quality-report")
+async def get_job_quality_report(
+    job_id: str,
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return objective conversion fidelity metrics and available page previews for a job."""
+    job = await _get_owned_job(db, job_id, actor)
+    report = (
+        await db.execute(
+            select(ConversionQualityReport).where(ConversionQualityReport.job_id == job.id)
+        )
+    ).scalar_one_or_none()
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="No conversion quality report recorded for this job.",
+        )
+
+    pages: set[int] = set()
+    for key in (report.page_image_keys or {}).keys():
+        if ":" in key:
+            p_str = key.split(":", 1)[0]
+            if p_str.isdigit():
+                pages.add(int(p_str))
+
+    return ok_response(
+        ConversionQualityReportOut(
+            id=report.id,
+            job_id=report.job_id,
+            source_version_id=report.source_version_id,
+            output_version_id=report.output_version_id,
+            source_format=report.source_format,
+            target_format=report.target_format,
+            conversion_mode=report.conversion_mode,
+            source_page_count=report.source_page_count,
+            converted_page_count=report.converted_page_count,
+            page_count_match=report.page_count_match,
+            char_similarity=report.char_similarity,
+            word_similarity=report.word_similarity,
+            mean_ssim=report.mean_ssim,
+            ssim_status=report.ssim_status,
+            source_table_count=report.source_table_count,
+            converted_table_count=report.converted_table_count,
+            source_image_count=report.source_image_count,
+            converted_image_count=report.converted_image_count,
+            missing_text_snippets=list(report.missing_text_snippets or []),
+            font_warnings=list(report.font_warnings or []),
+            warnings=list(report.warnings or []),
+            page_metrics=list(report.page_metrics or []),
+            available_preview_pages=sorted(pages),
+            created_at=report.created_at,
+        ).model_dump()
+    )
+
+
+@router.get("/{job_id}/quality-report/page/{page_no}/{side}")
+async def get_quality_report_page_image(
+    job_id: str,
+    page_no: int,
+    side: str,
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Serve source or converted rendered PNG for side-by-side conversion verification."""
+    if side not in ("source", "converted"):
+        raise HTTPException(status_code=400, detail="Side must be 'source' or 'converted'.")
+    job = await _get_owned_job(db, job_id, actor)
+    report = (
+        await db.execute(
+            select(ConversionQualityReport).where(ConversionQualityReport.job_id == job.id)
+        )
+    ).scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Quality report not found.")
+    storage_key = (report.page_image_keys or {}).get(f"{page_no}:{side}")
+    if not storage_key:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No rendered preview available for page {page_no} ({side}).",
+        )
+    png_bytes = await get_storage().get_bytes(storage_key)
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=300"},
+    )

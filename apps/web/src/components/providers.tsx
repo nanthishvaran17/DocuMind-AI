@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { WifiOff, X, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, WifiOff, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export interface ToastItem {
@@ -70,7 +70,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {isOffline && (
             <div
               role="status"
-              className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-300"
+              className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-500 dark:text-amber-300 backdrop-blur-md"
             >
               <WifiOff className="h-3.5 w-3.5" />
               <span>{t.app.offlineBanner}</span>
@@ -79,38 +79,48 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
           <div
             aria-live="polite"
-            className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"
+            className="fixed bottom-20 md:bottom-5 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"
           >
-            {toasts.map((item) => (
-              <div
-                key={item.id}
-                className="pointer-events-auto dm-elevated p-3.5 shadow-lg flex items-start gap-2.5"
-              >
-                {item.variant === "success" && (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                )}
-                {item.variant === "error" && (
-                  <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                )}
-                {(!item.variant || item.variant === "info") && (
-                  <Info className="h-4 w-4 text-sky-400 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{item.title}</p>
-                  {item.description && (
-                    <p className="text-xs text-[var(--dm-muted)] mt-0.5">{item.description}</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setToasts((p) => p.filter((x) => x.id !== item.id))}
-                  className="text-[var(--dm-muted)] hover:text-[var(--dm-text)]"
-                  aria-label="Close notification"
+            {toasts.map((item) => {
+              const borderAccent =
+                item.variant === "success"
+                  ? "border-l-emerald-500"
+                  : item.variant === "error"
+                    ? "border-l-red-500"
+                    : "border-l-indigo-500";
+              return (
+                <div
+                  key={item.id}
+                  className={`pointer-events-auto dm-elevated border-l-4 ${borderAccent} p-3.5 flex items-start gap-3 backdrop-blur-xl`}
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
+                  {item.variant === "success" && (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                  )}
+                  {item.variant === "error" && (
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  )}
+                  {(!item.variant || item.variant === "info") && (
+                    <Info className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-snug">{item.title}</p>
+                    {item.description && (
+                      <p className="text-xs text-[var(--dm-muted)] mt-0.5 leading-relaxed">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setToasts((p) => p.filter((x) => x.id !== item.id))}
+                    className="text-[var(--dm-muted)] hover:text-[var(--dm-text)] p-0.5 rounded"
+                    aria-label="Close notification"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </ToastContext.Provider>
       </QueryClientProvider>

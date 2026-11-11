@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     max_pdf_pages: int = 1000
     rate_limit_per_minute: int = 120
 
+    # AI & RAG Providers (Phase 2 & Phase 4)
+    ai_provider: str = "openai_compatible"
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_api_key: str = ""
+    ai_chat_model: str = "gpt-4o-mini"
+    ai_embedding_model: str = "text-embedding-3-small"
+    ollama_base_url: str = "http://localhost:11434"
+    anthropic_api_key: str = ""
+    rag_embedding_dim: int = 384
+    rag_chunk_size: int = 700
+    rag_chunk_overlap: int = 120
+
     log_level: str = "INFO"
 
     @field_validator("jwt_secret_key", mode="before")

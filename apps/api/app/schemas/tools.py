@@ -69,6 +69,56 @@ class CompressRequest(BaseModel):
     target_kb: int | None = Field(default=None, ge=10, le=51200)
 
 
+class ConvertRequest(BaseModel):
+    document_id: str
+    target_format: Literal[
+        "pdf", "docx", "xlsx", "pptx", "md", "txt", "html", "csv", "json", "png", "jpg"
+    ]
+    mode: Literal["editable", "high_fidelity", "hybrid"] = "editable"
+    pptx_mode: Literal["hybrid", "editable", "visual"] = "hybrid"
+    output_name: str | None = Field(default=None, max_length=255)
+
+
+class OcrRequest(BaseModel):
+    document_id: str
+    language: Literal["eng", "tam", "eng+tam"] = "eng"
+    force_ocr: bool = False
+    output_name: str | None = Field(default=None, max_length=255)
+
+
+class ExtractTablesRequest(BaseModel):
+    document_id: str
+    output_format: Literal["json", "xlsx", "csv"] = "json"
+    output_name: str | None = Field(default=None, max_length=255)
+
+
+class ConversionQualityReportOut(BaseModel):
+    id: str
+    job_id: str
+    source_version_id: str
+    output_version_id: str
+    source_format: str
+    target_format: str
+    conversion_mode: str
+    source_page_count: int
+    converted_page_count: int
+    page_count_match: bool
+    char_similarity: float
+    word_similarity: float
+    mean_ssim: float | None
+    ssim_status: str
+    source_table_count: int
+    converted_table_count: int
+    source_image_count: int
+    converted_image_count: int
+    missing_text_snippets: list[str]
+    font_warnings: list[dict[str, Any]]
+    warnings: list[str]
+    page_metrics: list[dict[str, Any]]
+    available_preview_pages: list[int]
+    created_at: datetime
+
+
 class JobOut(BaseModel):
     id: str
     job_type: str

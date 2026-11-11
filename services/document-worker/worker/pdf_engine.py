@@ -6,8 +6,9 @@ import textwrap
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import pikepdf
-from PIL import Image, ImageDraw, ImageEnhance, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.colors import Color
 from reportlab.lib.utils import ImageReader
@@ -22,7 +23,7 @@ def _try_import_fitz() -> Any | None:
     if not _pymupdf_allowed():
         return None
     try:
-        import fitz  # type: ignore[import-not-found]
+        import fitz
 
         return fitz
     except ImportError:
@@ -575,7 +576,7 @@ def resize_photo_or_signature(
         raise ValueError("Target dimensions must be between 32 and 4000 pixels.")
 
     before_bytes = len(image_bytes)
-    img = Image.open(io.BytesIO(image_bytes))
+    img: Image.Image = Image.open(io.BytesIO(image_bytes))
     img = ImageOps.exif_transpose(img)
 
     if enhance_background:
@@ -640,6 +641,36 @@ def resize_photo_or_signature(
     }
 
 
+def _enhance_scanned_page(img: Image.Image, enhance_mode: str) -> Image.Image:
+    """Apply illumination normalization and crisp contrast for document scans."""
+    if enhance_mode == "original":
+        return img
+
+    w, h = img.size
+    # Estimate smooth paper background via heavily downsampled blur for shadow removal
+    bg_size = (max(16, min(48, w // 24)), max(16, min(48, h // 24)))
+    bg_small = img.resize(bg_size, Image.Resampling.BILINEAR)
+    bg_small = bg_small.filter(ImageFilter.GaussianBlur(radius=2.0))
+    bg_full = bg_small.resize((w, h), Image.Resampling.BILINEAR)
+
+    src_arr = np.asarray(img, dtype=np.float32)
+    bg_arr = np.maximum(np.asarray(bg_full, dtype=np.float32), 48.0)
+
+    if enhance_mode == "document":
+        norm = (src_arr / bg_arr) * 242.0
+        norm = np.clip((norm - 128.0) * 1.24 + 134.0, 0.0, 255.0).astype(np.uint8)
+        out = Image.fromarray(norm, mode="RGB")
+        return ImageEnhance.Sharpness(out).enhance(1.25)
+
+    # grayscale mode
+    src_l = np.asarray(img.convert("L"), dtype=np.float32)
+    bg_l = np.maximum(np.asarray(bg_full.convert("L"), dtype=np.float32), 48.0)
+    norm_l = (src_l / bg_l) * 245.0
+    norm_l = np.clip((norm_l - 128.0) * 1.45 + 136.0, 0.0, 255.0).astype(np.uint8)
+    out_l = Image.fromarray(norm_l, mode="L")
+    return ImageEnhance.Sharpness(out_l).enhance(1.3).convert("RGB")
+
+
 def images_to_scanned_pdf(
     images: list[bytes],
     enhance_mode: str = "document",
@@ -654,18 +685,12 @@ def images_to_scanned_pdf(
     c = canvas.Canvas(out)
 
     for raw in images:
-        img = Image.open(io.BytesIO(raw))
+        img: Image.Image = Image.open(io.BytesIO(raw))
         img = ImageOps.exif_transpose(img)
         if img.mode != "RGB":
             img = img.convert("RGB")
 
-        if enhance_mode == "document":
-            img = ImageOps.autocontrast(img, cutoff=1)
-            img = ImageEnhance.Contrast(img).enhance(1.25)
-            img = ImageEnhance.Sharpness(img).enhance(1.3)
-        elif enhance_mode == "grayscale":
-            img = ImageOps.autocontrast(img.convert("L"), cutoff=2)
-            img = ImageEnhance.Contrast(img).enhance(1.35).convert("RGB")
+        img = _enhance_scanned_page(img, enhance_mode)
 
         # Normalize to crisp A4-equivalent pt size keeping orientation
         w_px, h_px = img.size

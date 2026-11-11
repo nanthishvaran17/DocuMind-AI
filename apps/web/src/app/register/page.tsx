@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, UserPlus } from "lucide-react";
+import { GraduationCap, Loader2, UserPlus } from "lucide-react";
 import type { AuthSession } from "@documind/types";
 import { apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -58,11 +58,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[var(--dm-bg)] dm-ambient-bg">
       <Navbar />
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="dm-card max-w-md w-full p-6 sm:p-8 space-y-5">
-          <div className="space-y-1">
+      <main className="flex-1 flex items-center justify-center p-4 dm-grid-bg">
+        <div className="dm-elevated max-w-md w-full p-7 sm:p-8 space-y-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/25 text-[11px] font-medium text-violet-500 dark:text-violet-300">
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>.edu / .ac.in auto-verified</span>
+            </div>
             <h1 className="text-2xl font-semibold">Create your free account</h1>
             <p className="text-sm text-[var(--dm-muted)]">
               Use a <code>.edu</code>, <code>.edu.in</code>, or <code>.ac.in</code> email for automatic Student verification.
@@ -70,41 +74,41 @@ export default function RegisterPage() {
           </div>
 
           {serverError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-400">
               {serverError}
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium">Full Name</label>
               <input
                 type="text"
                 {...register("full_name")}
                 placeholder="Karthik Subramanian"
-                className="w-full rounded-lg border border-[var(--dm-border)] bg-[var(--dm-bg)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="dm-input w-full px-3.5 py-2.5 text-sm"
               />
               {errors.full_name && <p className="text-xs text-red-400">{errors.full_name.message}</p>}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium">Email</label>
               <input
                 type="email"
                 {...register("email")}
                 placeholder="karthik@annauniv.edu.in"
-                className="w-full rounded-lg border border-[var(--dm-border)] bg-[var(--dm-bg)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="dm-input w-full px-3.5 py-2.5 text-sm"
               />
               {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium">Password</label>
               <input
                 type="password"
                 {...register("password")}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-[var(--dm-border)] bg-[var(--dm-bg)] px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="dm-input w-full px-3.5 py-2.5 text-sm"
               />
               {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
             </div>
@@ -121,7 +125,7 @@ export default function RegisterPage() {
 
           <p className="text-xs text-center text-[var(--dm-muted)]">
             Already have an account?{" "}
-            <Link href="/login" className="text-indigo-400 hover:underline">
+            <Link href="/login" className="text-indigo-400 hover:underline font-medium">
               Sign in
             </Link>
           </p>

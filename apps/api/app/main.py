@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import agent, auth, documents, folders, health, jobs, search, tools, users
+from app.api.v1 import agent, ai_rag, auth, documents, folders, health, jobs, search, tools, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging, request_id_ctx
 from app.core.rate_limit import rate_limit_dependency
@@ -165,6 +165,7 @@ def create_app() -> FastAPI:
     app.include_router(tools.router, prefix=prefix, dependencies=api_deps)
     app.include_router(jobs.router, prefix=prefix, dependencies=api_deps)
     app.include_router(search.router, prefix=prefix, dependencies=api_deps)
+    app.include_router(ai_rag.router, prefix=prefix, dependencies=api_deps)
     app.include_router(agent.router, prefix=prefix, dependencies=api_deps)
     return app
 

@@ -7,10 +7,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from app.core.config import get_settings
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-
-from app.core.config import get_settings
 
 _ph = PasswordHasher(time_cost=2, memory_cost=65536, parallelism=2)
 

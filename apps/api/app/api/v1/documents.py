@@ -6,22 +6,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Query,
-    Request,
-    Response,
-    UploadFile,
-    status,
-)
-from sqlalchemy import and_, desc, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
 from app.api.deps import ActorContext, get_current_actor, get_owned_document
 from app.core.config import get_settings
 from app.db.models import (
@@ -48,6 +32,21 @@ from app.services.file_validation import validate_upload_bytes
 from app.services.job_runner import pdf_engine, populate_pdf_version_assets
 from app.services.retention import hard_delete_document
 from app.services.storage import get_storage
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
+from sqlalchemy import and_, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -185,6 +184,22 @@ async def _ingest_uploaded_bytes(
 
     if validated.extension == ".pdf":
         await populate_pdf_version_assets(db, ver, processed_bytes)
+
+    if validated.extension in (".pdf", ".docx", ".xlsx", ".pptx", ".md", ".markdown", ".txt"):
+        try:
+            from app.services.rag import index_document_version
+
+            await index_document_version(
+                db,
+                document_id=doc.id,
+                version_id=ver.id,
+                raw_bytes=processed_bytes,
+                mime_type=validated.mime_type,
+                filename=doc.name,
+                force=True,
+            )
+        except Exception:
+            pass
 
     await record_audit_log(
         db,

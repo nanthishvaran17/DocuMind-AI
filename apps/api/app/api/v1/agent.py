@@ -1,143 +1,74 @@
 from __future__ import annotations
 
-import re
+import asyncio
+import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.deps import ActorContext, get_current_actor, get_owned_document
-from app.db.models import AgentRun, ConversionJob, DocumentVersion
+from app.db.models import AgentRun, DocumentVersion
 from app.db.session import get_db
 from app.schemas.agent import (
     AgentApproveRequest,
     AgentCommandRequest,
     AgentCommandResponse,
+    AgentExecutionLogEntryOut,
     AgentPlanStepOut,
 )
 from app.schemas.common import ok_response
-from app.services.job_runner import dispatch_job, pdf_engine
+from app.services.agent_executor import (
+    agent_progress_bus,
+    create_job_for_step,
+    execute_agent_workflow,
+)
+from app.services.agent_planner import ALLOWED_AGENT_TOOLS, plan_command_workflow
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from worker import converter
 
 router = APIRouter(prefix="/ai/agent", tags=["agent"])
 
 
-def _parse_command_to_plan(command: str, total_pages: int) -> list[dict[str, Any]]:
-    """
-    Phase 1 deterministic command planner for the 'Tell me what you want' hero box.
-    Full LLM-driven multi-tool agent lands in Phase 5; in Phase 1 this safely maps
-    common PDF intents into executable tool steps with mandatory approval.
-    """
-    text = command.strip()
-    lower = text.lower()
-    steps: list[dict[str, Any]] = []
+def _run_to_response(
+    run: AgentRun,
+    *,
+    status_override: str | None = None,
+    job_id: str | None = None,
+    output_document_id: str | None = None,
+) -> dict[str, Any]:
+    steps_raw = list(run.plan or [])
+    first_job_id = job_id
+    latest_doc_id = output_document_id
+    for s in steps_raw:
+        if not first_job_id and s.get("job_id"):
+            first_job_id = str(s["job_id"])
+        if s.get("output_document_id"):
+            latest_doc_id = str(s["output_document_id"])
 
-    # 1. Compress to target size (e.g., "compress to 200 kb" or "compress to 1 mb")
-    kb_match = re.search(r"(?:compress|shrink|reduce).*?(\d+(?:\.\d+)?)\s*(kb|mb)", lower)
-    if kb_match:
-        val = float(kb_match.group(1))
-        unit = kb_match.group(2)
-        target_kb = int(val * 1024) if unit == "mb" else int(val)
-        steps.append(
-            {
-                "step_no": 1,
-                "tool_name": "compress_pdf",
-                "description": f"Compress PDF to under {target_kb} KB (creates a new version).",
-                "params": {"preset": "medium", "target_kb": max(10, target_kb)},
-                "requires_approval": True,
-            }
-        )
-    elif "compress" in lower or "smaller" in lower:
-        steps.append(
-            {
-                "step_no": 1,
-                "tool_name": "compress_pdf",
-                "description": "Compress PDF using balanced medium preset (creates a new version).",
-                "params": {"preset": "medium", "target_kb": None},
-                "requires_approval": True,
-            }
-        )
-
-    # 2. Rotate pages
-    rot_match = re.search(r"rotate(?:\s+\w+)*?\s+(90|180|270)", lower)
-    if rot_match:
-        angle = int(rot_match.group(1))
-        steps.append(
-            {
-                "step_no": len(steps) + 1,
-                "tool_name": "rotate_pdf",
-                "description": f"Rotate pages by {angle} degrees clockwise.",
-                "params": {"angle": angle, "pages": None},
-                "requires_approval": True,
-            }
-        )
-
-    # 3. Remove / delete pages (e.g., "remove pages 3-5" or "delete page 2")
-    del_match = re.search(r"(?:remove|delete)\s+pages?\s+([\d,\-\s]+)", lower)
-    if del_match:
-        spec = del_match.group(1).strip()
-        to_delete = set(pdf_engine.parse_page_ranges(spec, total_pages))
-        remaining = [p for p in range(1, total_pages + 1) if p not in to_delete]
-        if not remaining:
-            raise ValueError("Cannot delete all pages from the document.")
-        steps.append(
-            {
-                "step_no": len(steps) + 1,
-                "tool_name": "delete_pages",
-                "description": f"Remove page(s) {spec} while keeping original version intact.",
-                "params": {"pages": remaining},
-                "requires_approval": True,
-            }
-        )
-
-    # 4. Extract pages
-    ext_match = re.search(r"extract\s+pages?\s+([\d,\-\s]+)", lower)
-    if ext_match:
-        spec = ext_match.group(1).strip()
-        selected = pdf_engine.parse_page_ranges(spec, total_pages)
-        steps.append(
-            {
-                "step_no": len(steps) + 1,
-                "tool_name": "extract_pages",
-                "description": f"Extract page(s) {spec} into a new PDF document.",
-                "params": {"pages": selected},
-                "requires_approval": True,
-            }
-        )
-
-    # 5. Add page numbers
-    if "page number" in lower or "number pages" in lower:
-        steps.append(
-            {
-                "step_no": len(steps) + 1,
-                "tool_name": "page_numbers",
-                "description": "Add 'Page N of Total' numbering to the bottom center of each page.",
-                "params": {
-                    "position": "bottom-center",
-                    "template": "Page {n} of {total}",
-                    "start_no": 1,
-                },
-                "requires_approval": True,
-            }
-        )
-
-    # 6. Watermark
-    wm_match = re.search(
-        r"watermark\s+(?:with\s+)?['\"]?([^'\"]+)['\"]?", text, flags=re.IGNORECASE
-    )
-    if wm_match:
-        wm_text = wm_match.group(1).strip()[:80]
-        steps.append(
-            {
-                "step_no": len(steps) + 1,
-                "tool_name": "watermark",
-                "description": f"Stamp diagonal watermark '{wm_text}' on every page.",
-                "params": {"text": wm_text, "opacity": 0.22, "angle": 45, "font_size": 40},
-                "requires_approval": True,
-            }
-        )
-
-    return steps
+    return AgentCommandResponse(
+        run_id=run.id,
+        command_text=run.command_text,
+        status=status_override or run.status,  # type: ignore[arg-type]
+        steps=[
+            AgentPlanStepOut(
+                **{k: v for k, v in s.items() if k in AgentPlanStepOut.model_fields}
+            )
+            for s in steps_raw
+        ],
+        summary=run.final_summary or "",
+        current_step_no=run.current_step_no or 0,
+        document_ids=list(run.document_ids or []),
+        execution_log=[
+            AgentExecutionLogEntryOut(**entry)
+            for entry in (run.execution_log or [])
+            if isinstance(entry, dict)
+        ],
+        output_document_id=latest_doc_id,
+        job_id=first_job_id,
+        created_at=run.created_at,
+        updated_at=run.updated_at,
+    ).model_dump()
 
 
 @router.post("/command")
@@ -146,27 +77,43 @@ async def plan_agent_command(
     actor: ActorContext = Depends(get_current_actor),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    doc_id = payload.document_id or (payload.document_ids[0] if payload.document_ids else None)
-    if not doc_id:
+    doc_ids: list[str] = []
+    if payload.document_id:
+        doc_ids.append(payload.document_id)
+    if payload.document_ids:
+        for did in payload.document_ids:
+            if did not in doc_ids:
+                doc_ids.append(did)
+
+    if not doc_ids:
         raise HTTPException(
             status_code=400,
-            detail="Select or upload a PDF document first so I know which file to operate on.",
+            detail="Select or upload a document first so I know which file to operate on.",
         )
 
-    doc = await get_owned_document(db, doc_id, actor)
+    primary_doc = await get_owned_document(db, doc_ids[0], actor)
+    for extra_id in doc_ids[1:]:
+        await get_owned_document(db, extra_id, actor)
+
     ver = (
         await db.execute(
             select(DocumentVersion).where(
-                DocumentVersion.document_id == doc.id,
-                DocumentVersion.version_no == doc.current_version_no,
+                DocumentVersion.document_id == primary_doc.id,
+                DocumentVersion.version_no == primary_doc.current_version_no,
             )
         )
     ).scalar_one_or_none()
     if not ver:
         raise HTTPException(status_code=404, detail="Document version not found.")
 
+    src_format = converter.infer_source_format(primary_doc.name, ver.mime_type)
     try:
-        steps = _parse_command_to_plan(payload.command, ver.page_count or 1)
+        steps = await plan_command_workflow(
+            payload.command,
+            total_pages=ver.page_count or 1,
+            doc_ids=doc_ids,
+            source_format=src_format,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -175,58 +122,130 @@ async def plan_agent_command(
             user_id=actor.user_id,
             guest_session_id=actor.guest_session_id,
             command_text=payload.command,
+            document_ids=doc_ids,
             plan=[],
             status="failed",
             final_summary=(
-                "In Phase 1, the command box supports: compress (e.g. 'compress to 200 kb'), "
-                "rotate ('rotate 90'), delete/extract pages ('remove pages 2-3'), "
-                "add page numbers, and watermark ('watermark CONFIDENTIAL'). "
-                "AI chat, Word/Excel conversion, and report generation arrive in Phases 2-5."
+                "Could not map that command into tool steps. Try e.g. "
+                "'compress to 200 kb, add page numbers', "
+                "'convert to docx', 'watermark CONFIDENTIAL', or 'summarize this document'."
             ),
         )
         db.add(run)
         await db.commit()
-        return ok_response(
-            AgentCommandResponse(
-                run_id=run.id,
-                command_text=payload.command,
-                status="unsupported",
-                steps=[],
-                summary=run.final_summary or "",
-            ).model_dump()
-        )
+        return ok_response(_run_to_response(run, status_override="unsupported"))
 
     for s in steps:
-        s["document_id"] = doc.id
+        s["document_id"] = primary_doc.id
         s["source_version_id"] = ver.id
+        if payload.auto_approve_readonly:
+            tool_meta = ALLOWED_AGENT_TOOLS.get(s["tool_name"], {})
+            if tool_meta.get("kind") == "ai":
+                s["requires_approval"] = False
+                s["approval_status"] = "approved"
 
     run = AgentRun(
         user_id=actor.user_id,
         guest_session_id=actor.guest_session_id,
         command_text=payload.command,
+        document_ids=doc_ids,
         plan=steps,
+        current_step_no=0,
+        execution_log=[
+            {
+                "timestamp": primary_doc.updated_at.isoformat(),
+                "step_no": None,
+                "event": "plan_created",
+                "message": f"Planned {len(steps)} chained step(s) for '{primary_doc.name}'.",
+                "meta": {"doc_ids": doc_ids},
+            }
+        ],
         status="awaiting_approval",
         final_summary=(
-            f"Ready to apply {len(steps)} step(s) on '{doc.name}'. Please review and approve."
+            f"Planned {len(steps)} step(s) on '{primary_doc.name}'. "
+            "Inspect parameters and approve all or step-by-step."
         ),
     )
     db.add(run)
     await db.commit()
+    await db.refresh(run)
 
-    return ok_response(
-        AgentCommandResponse(
-            run_id=run.id,
-            command_text=payload.command,
-            status="awaiting_approval",
-            steps=[
-                AgentPlanStepOut(
-                    **{k: v for k, v in s.items() if k in AgentPlanStepOut.model_fields}
-                )
-                for s in steps
-            ],
-            summary=run.final_summary or "",
-        ).model_dump()
-    )
+    return ok_response(_run_to_response(run))
+
+
+@router.get("/runs")
+async def list_agent_runs(
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    stmt = select(AgentRun)
+    if actor.is_guest:
+        stmt = stmt.where(AgentRun.guest_session_id == actor.guest_session_id)
+    else:
+        stmt = stmt.where(AgentRun.user_id == actor.user_id)
+    runs = list((await db.execute(stmt.order_by(desc(AgentRun.created_at)).limit(30))).scalars())
+    return ok_response([_run_to_response(r) for r in runs])
+
+
+@router.get("/runs/{run_id}")
+async def get_agent_run(
+    run_id: str,
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    stmt = select(AgentRun).where(AgentRun.id == run_id)
+    if actor.is_guest:
+        stmt = stmt.where(AgentRun.guest_session_id == actor.guest_session_id)
+    else:
+        stmt = stmt.where(AgentRun.user_id == actor.user_id)
+    run = (await db.execute(stmt)).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found.")
+    return ok_response(_run_to_response(run))
+
+
+@router.get("/runs/{run_id}/events")
+async def stream_agent_run_events(
+    run_id: str,
+    actor: ActorContext = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    stmt = select(AgentRun).where(AgentRun.id == run_id)
+    if actor.is_guest:
+        stmt = stmt.where(AgentRun.guest_session_id == actor.guest_session_id)
+    else:
+        stmt = stmt.where(AgentRun.user_id == actor.user_id)
+    run = (await db.execute(stmt)).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found.")
+
+    async def event_stream():
+        queue = agent_progress_bus.subscribe(run_id)
+        try:
+            initial = {
+                "run_id": run.id,
+                "status": run.status,
+                "current_step_no": run.current_step_no,
+                "summary": run.final_summary,
+                "steps": run.plan,
+                "execution_log": run.execution_log,
+            }
+            yield f"data: {json.dumps(initial, default=str)}\n\n"
+            if run.status in ("completed", "failed", "cancelled"):
+                return
+
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {json.dumps(msg, default=str)}\n\n"
+                    if msg.get("status") in ("completed", "failed", "cancelled"):
+                        break
+                except TimeoutError:
+                    yield ": keep-alive\n\n"
+        finally:
+            agent_progress_bus.unsubscribe(run_id, queue)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/runs/{run_id}/approve")
@@ -245,61 +264,87 @@ async def approve_agent_run(
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found.")
 
-    if run.status != "awaiting_approval":
+    if run.status not in ("awaiting_approval", "running"):
         raise HTTPException(status_code=400, detail=f"Run is already '{run.status}'.")
 
     if not payload.approve:
         run.status = "cancelled"
         run.final_summary = "Action cancelled by user."
         await db.commit()
-        return ok_response(
-            AgentCommandResponse(
-                run_id=run.id,
-                command_text=run.command_text,
-                status="failed",
-                steps=[],
-                summary=run.final_summary,
-            ).model_dump()
-        )
+        return ok_response(_run_to_response(run, status_override="failed"))
 
-    # Execute first planned step (and chain sequentially in future phases)
-    step = run.plan[0]
-    tool_map = {
-        "compress_pdf": "compress",
-        "rotate_pdf": "rotate",
-        "delete_pages": "delete_pages",
-        "extract_pages": "extract_pages",
-        "page_numbers": "page_numbers",
-        "watermark": "watermark",
-    }
-    job_type = tool_map.get(step["tool_name"])
-    if not job_type:
-        raise HTTPException(status_code=400, detail="Unsupported planned tool.")
+    plan = [dict(s) for s in (run.plan or [])]
+    if not plan:
+        raise HTTPException(status_code=400, detail="Agent run has no executable steps.")
 
-    job = ConversionJob(
-        user_id=actor.user_id,
-        guest_session_id=actor.guest_session_id,
-        source_version_id=step["source_version_id"],
-        job_type=job_type,
-        params=step["params"],
-        status="queued",
-        progress=0,
-        stage_message="Approved via command bar",
-    )
-    db.add(job)
-    run.status = "completed"
-    run.final_summary = f"Dispatched '{job_type}' job."
+    # Apply granular step overrides & per-step approval/skip choices
+    overrides = payload.step_overrides or {}
+    step_approvals = payload.step_approvals or {}
+    next_pending_assigned = False
+
+    for idx, step in enumerate(plan):
+        sno = int(step["step_no"])
+        if step.get("execution_status") in ("completed", "skipped"):
+            continue
+        if sno in overrides and isinstance(overrides[sno], dict):
+            merged_params = dict(step.get("params") or {})
+            merged_params.update(overrides[sno])
+            step["params"] = merged_params
+
+        if sno in step_approvals:
+            step["approval_status"] = "approved" if step_approvals[sno] else "skipped"
+        elif payload.mode == "all":
+            if step.get("approval_status") == "pending":
+                step["approval_status"] = "approved"
+        elif payload.mode == "next_step":
+            if not next_pending_assigned and step.get("approval_status") == "pending":
+                step["approval_status"] = "approved"
+                next_pending_assigned = True
+        plan[idx] = step
+
+    run.plan = plan
+    run.status = "running"
+
+    # Pre-create ConversionJob for the first approved job-based pending step so callers
+    # immediately receive a job_id (preserving Phase 1 contract & enabling direct job SSE).
+    first_job_id: str | None = None
+    doc_ids = list(run.document_ids or [])
+    active_doc_id = doc_ids[0] if doc_ids else (plan[0].get("document_id"))
+    active_ver_id = plan[0].get("source_version_id")
+    for s in plan:
+        if s.get("execution_status") == "completed" and s.get("output_document_id"):
+            active_doc_id = s["output_document_id"]
+            active_ver_id = s.get("output_version_id")
+
+    for idx, s in enumerate(plan):
+        if s.get("execution_status") == "pending" and s.get("approval_status") == "approved":
+            tmeta = ALLOWED_AGENT_TOOLS.get(str(s["tool_name"]), {})
+            if tmeta.get("kind") == "job" and active_doc_id and active_ver_id:
+                job = await create_job_for_step(
+                    db,
+                    actor=actor,
+                    step=s,
+                    active_doc_id=str(active_doc_id),
+                    active_ver_id=str(active_ver_id),
+                    doc_ids=doc_ids,
+                )
+                first_job_id = job.id
+                s["job_id"] = job.id
+                plan[idx] = s
+                run.plan = plan
+            break
+
+    run.final_summary = f"Executing {len(plan)} workflow step(s)..."
     await db.commit()
-    await db.refresh(job)
-    await dispatch_job(job.id)
+    await db.refresh(run)
 
-    return ok_response(
-        AgentCommandResponse(
-            run_id=run.id,
-            command_text=run.command_text,
-            status="completed",
-            steps=[],
-            summary=run.final_summary,
-            job_id=job.id,
-        ).model_dump()
+    asyncio.create_task(
+        execute_agent_workflow(
+            run.id,
+            actor=actor,
+            mode=payload.mode,
+            precreated_first_job_id=first_job_id,
+        )
     )
+
+    return ok_response(_run_to_response(run, job_id=first_job_id))

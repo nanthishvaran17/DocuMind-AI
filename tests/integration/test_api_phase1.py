@@ -11,9 +11,10 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 @pytest.fixture()
-async def api_client(tmp_path: Path):
+async def api_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db_file = tmp_path / "test_api.db"
     storage_dir = tmp_path / "storage"
+    storage_dir.mkdir(parents=True, exist_ok=True)
     os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{db_file.as_posix()}"
     os.environ["LOCAL_STORAGE_PATH"] = str(storage_dir)
     os.environ["STORAGE_BACKEND"] = "local"
@@ -21,18 +22,48 @@ async def api_client(tmp_path: Path):
     os.environ["CLAMAV_MODE"] = "disabled_dev"
 
     from app.core.config import get_settings
+    from app.db import session as db_session
     from app.db.models import Base
-    from app.db.session import engine
     from app.main import create_app
+    from app.services import agent_executor, job_runner
+    from app.services import storage as storage_service
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     get_settings.cache_clear()
-    async with engine.begin() as conn:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "local_storage_path", str(storage_dir))
+
+    iso_engine = create_async_engine(f"sqlite+aiosqlite:///{db_file.as_posix()}", future=True)
+    async with iso_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    session_factory = async_sessionmaker(
+        bind=iso_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    monkeypatch.setattr(db_session, "AsyncSessionLocal", session_factory)
+    monkeypatch.setattr(agent_executor, "AsyncSessionLocal", session_factory)
+    if hasattr(job_runner, "AsyncSessionLocal"):
+        monkeypatch.setattr(job_runner, "AsyncSessionLocal", session_factory)
+    monkeypatch.setattr(
+        storage_service,
+        "_adapter",
+        storage_service.LocalStorageAdapter(str(storage_dir)),
+    )
+
+    async def _override_get_db():
+        async with session_factory() as session:
+            yield session
+
     app = create_app()
+    app.dependency_overrides[db_session.get_db] = _override_get_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
+    app.dependency_overrides.clear()
+    await iso_engine.dispose()
 
 
 async def _wait_for_job(client: AsyncClient, headers: dict[str, str], job_id: str) -> dict:
@@ -135,6 +166,35 @@ async def test_health_auth_acl_and_version_immutability(api_client: AsyncClient)
     assert approve_resp.status_code == 200
     job2 = await _wait_for_job(api_client, headers_a, approve_resp.json()["data"]["job_id"])
     assert job2["status"] == "completed"
+
+    # Multi-step AI agent workflow: plan 2 steps -> approve -> execute sequentially
+    pipe_plan = await api_client.post(
+        "/api/v1/ai/agent/command",
+        headers=headers_a,
+        json={"command": "compress to 200 kb and add page numbers", "document_id": doc_id},
+    )
+    assert pipe_plan.status_code == 200
+    pipe_data = pipe_plan.json()["data"]
+    assert len(pipe_data["steps"]) == 2
+    pipe_approve = await api_client.post(
+        f"/api/v1/ai/agent/runs/{pipe_data['run_id']}/approve",
+        headers=headers_a,
+        json={"approve": True, "mode": "all"},
+    )
+    assert pipe_approve.status_code == 200
+    run_state = pipe_approve.json()["data"]
+    for _ in range(120):
+        if run_state["status"] in ("completed", "failed", "cancelled"):
+            break
+        await asyncio.sleep(0.05)
+        r = await api_client.get(
+            f"/api/v1/ai/agent/runs/{pipe_data['run_id']}", headers=headers_a
+        )
+        assert r.status_code == 200
+        run_state = r.json()["data"]
+    assert run_state["status"] == "completed"
+    assert all(s["execution_status"] == "completed" for s in run_state["steps"])
+    assert run_state["output_document_id"] is not None
 
 
 @pytest.mark.asyncio

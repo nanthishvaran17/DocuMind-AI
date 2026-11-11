@@ -13,10 +13,11 @@ migrate:
 	cd apps/api && alembic upgrade head
 
 test:
-	.venv/Scripts/pytest.exe -v --cov=apps/api/app --cov=services/document-worker/worker
+	cd apps/api && ../../.venv/Scripts/pytest.exe -v --cov=app --cov=../../services/document-worker/worker
 	pnpm test
 
 lint:
-	.venv/Scripts/ruff.exe check apps/api services/document-worker tests
+	.venv/Scripts/ruff.exe check --config apps/api/pyproject.toml apps/api services/document-worker tests
+	.venv/Scripts/python.exe -m mypy --config-file apps/api/pyproject.toml apps/api/app services/document-worker/worker
 	pnpm lint
 	pnpm typecheck

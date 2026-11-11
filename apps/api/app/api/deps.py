@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.security import decode_access_token, verify_csrf_token
 from app.db.models import Document, User, UserSession
 from app.db.session import get_db
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @dataclass(frozen=True)

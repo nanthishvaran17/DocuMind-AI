@@ -20,6 +20,30 @@ def run_pdf_job(self: Any, job_id: str) -> dict[str, Any]:
     return {"job_id": job_id, "status": "completed"}
 
 
+@celery_app.task(bind=True, name="worker.tasks.run_conversion_job", max_retries=2)
+def run_conversion_job(self: Any, job_id: str) -> dict[str, Any]:
+    """Celery entrypoint routed to the `convert` queue for format conversions."""
+    import asyncio
+
+    from app.services.job_runner import execute_job_by_id
+
+    logger.info("Executing Celery conversion job %s (task_id=%s)", job_id, self.request.id)
+    asyncio.run(execute_job_by_id(job_id))
+    return {"job_id": job_id, "status": "completed"}
+
+
+@celery_app.task(bind=True, name="worker.tasks.run_ocr_job", max_retries=2)
+def run_ocr_job(self: Any, job_id: str) -> dict[str, Any]:
+    """Celery entrypoint routed to the `ocr` queue for OCR extraction."""
+    import asyncio
+
+    from app.services.job_runner import execute_job_by_id
+
+    logger.info("Executing Celery OCR job %s (task_id=%s)", job_id, self.request.id)
+    asyncio.run(execute_job_by_id(job_id))
+    return {"job_id": job_id, "status": "completed"}
+
+
 @celery_app.task(name="worker.tasks.cleanup_expired_guests")
 def cleanup_expired_guests() -> dict[str, int]:
     """Periodic task to hard-delete expired guest documents and storage objects."""

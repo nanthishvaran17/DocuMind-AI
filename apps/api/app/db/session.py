@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
+from app.core.config import get_settings
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from app.core.config import get_settings
 
 _settings = get_settings()
 _is_sqlite = _settings.database_url.startswith("sqlite")

@@ -5,9 +5,8 @@ from pathlib import Path
 from typing import Protocol
 
 import boto3
-from botocore.client import Config
-
 from app.core.config import get_settings
+from botocore.client import Config
 
 
 class StorageAdapter(Protocol):
