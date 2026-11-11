@@ -157,7 +157,9 @@ def test_pdf_to_xlsx_numeric_types_and_roundtrip() -> None:
         Table([["Col1", "Col2"], ["ValB", "200"]]),
     ]
     doc_multi.build(story_multi)
-    multi_xlsx_art = conversion_engine.pdf_to_xlsx(multi_buf.getvalue(), base_name="multi_table.pdf")
+    multi_xlsx_art = conversion_engine.pdf_to_xlsx(
+        multi_buf.getvalue(), base_name="multi_table.pdf"
+    )
     assert multi_xlsx_art.output_ext == ".xlsx"
     assert multi_xlsx_art.meta["sheets_count"] >= 1
 
