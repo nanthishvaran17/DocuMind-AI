@@ -7,6 +7,7 @@ import type { DocumentItem, JobRecord } from "@documind/types";
 import { COMPRESS_TARGET_PRESETS, formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { FileFormatIcon } from "@/components/FileFormatIcon";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";
@@ -123,9 +124,17 @@ export default function CompressToolPage() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="hidden"
             />
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/25">
-              <Upload className="h-5 w-5" />
-            </div>
+            {file ? (
+              <FileFormatIcon
+                mime="application/pdf"
+                filename={file.name}
+                className="h-12 w-12 mx-auto mb-3 drop-shadow-md"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/25">
+                <Upload className="h-5 w-5" />
+              </div>
+            )}
             <p className="text-sm font-bold text-[var(--dm-text)]">{file ? file.name : "Click to choose a PDF file"}</p>
             <p className="text-xs text-[var(--dm-muted)] mt-1">
               {file ? (

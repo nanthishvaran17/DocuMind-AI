@@ -135,6 +135,31 @@ def test_pdf_to_xlsx_numeric_types_and_roundtrip() -> None:
     assert isinstance(ws["D2"].value, float)
     assert ws["D2"].value == 1250.50
 
+    # Test text-only PDF (no tables) conversion to XLSX
+    from reportlab.pdfgen import canvas
+    text_buf = io.BytesIO()
+    c = canvas.Canvas(text_buf)
+    c.drawString(50, 750, "DocuMind Research Synopsis Report")
+    c.drawString(50, 730, "Autonomous document AI pipeline verification")
+    c.showPage()
+    c.save()
+    text_xlsx_art = conversion_engine.pdf_to_xlsx(text_buf.getvalue(), base_name="text_only.pdf")
+    assert text_xlsx_art.output_ext == ".xlsx"
+
+    # Test multi-table PDF conversion
+    multi_buf = io.BytesIO()
+    doc_multi = SimpleDocTemplate(multi_buf, pagesize=letter)
+    story_multi = [
+        Paragraph("Section A", ParagraphStyle("H1", fontName="Helvetica-Bold", fontSize=14)),
+        Table([["Col1", "Col2"], ["ValA", "100"]]),
+        Paragraph("Section B", ParagraphStyle("H2", fontName="Helvetica-Bold", fontSize=14)),
+        Table([["Col1", "Col2"], ["ValB", "200"]]),
+    ]
+    doc_multi.build(story_multi)
+    multi_xlsx_art = conversion_engine.pdf_to_xlsx(multi_buf.getvalue(), base_name="multi_table.pdf")
+    assert multi_xlsx_art.output_ext == ".xlsx"
+    assert multi_xlsx_art.meta["sheets_count"] >= 1
+
     # Round-trip XLSX -> PDF -> verify PDF quality + SSIM
     pdf_roundtrip = conversion_engine.office_or_text_to_pdf(
         _build_golden_xlsx(), source_ext="xlsx", base_name="marks.xlsx"

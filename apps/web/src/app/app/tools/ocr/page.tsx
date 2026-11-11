@@ -20,6 +20,7 @@ import type { DocumentItem, JobRecord, OcrLanguage } from "@documind/types";
 import { formatBytes } from "@documind/shared";
 import { AppShell } from "@/components/AppShell";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { FileFormatIcon } from "@/components/FileFormatIcon";
 import { PrivacyBadge } from "@/components/PrivacyBadge";
 import { useToast } from "@/components/providers";
 import { apiRequest, fetchAuthorizedBlob, pollOrStreamJob } from "@/lib/api";

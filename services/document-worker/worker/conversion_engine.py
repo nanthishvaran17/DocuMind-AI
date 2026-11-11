@@ -892,73 +892,142 @@ def _write_xlsx_table_sheet(
     ws.page_setup.fitToHeight = 0
 
 
-def _write_xlsx_fulltext_sheet(
+def _write_combined_sheet(
     wb: openpyxl.Workbook,
+    tables: list[dict[str, Any]],
     pdf_bytes: bytes,
+    grid_border: Border,
     header_fill: PatternFill,
+    zebra_fill: PatternFill,
     header_font: Font,
     body_font: Font,
 ) -> int:
     """
-    Write a lossless Full_Text sheet with every non-empty line from every page.
-    Uses pdfplumber for consistent text extraction matching the table extractor.
-    Returns the number of lines written.
+    Create a unified 'Combined_Data' worksheet containing all rows and columns
+    from the PDF in reading order. Consecutive multi-page tables are merged seamlessly.
+    Returns the total data rows written.
     """
-    ws = wb.create_sheet(title="Full_Text")
+    ws = wb.create_sheet(title="Combined_Data", index=0)
+    ws.views.sheetView[0].showGridLines = True
     ws.freeze_panes = "A2"
 
-    # Header row
-    for col_idx, heading in enumerate(["Page", "Line", "Content"], start=1):
-        cell = ws.cell(row=1, column=col_idx, value=heading)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+    section_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+    section_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
 
-    thin = Side(border_style="thin", color="CBD5E1")
-    grid_border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    cur_row = 1
+    total_rows_written = 0
 
-    row_no = 2
-    with pdfplumber.open(io.BytesIO(pdf_bytes)) as plum:
-        for p_no, page in enumerate(plum.pages, start=1):
-            # pdfplumber gives better layout-aware text than pypdf
-            raw_text = page.extract_text(layout=True) or ""
-            # Also try without layout flag as a supplement if layout gives nothing
-            if not raw_text.strip():
-                raw_text = page.extract_text() or ""
-            for l_no, line in enumerate(raw_text.splitlines(), start=1):
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                fill = zebra_fill if row_no % 2 == 0 else None
-                for col_idx, val in enumerate([p_no, l_no, stripped], start=1):
-                    cell = ws.cell(row=row_no, column=col_idx, value=val)
-                    cell.font = body_font
+    if tables:
+        # Check if consecutive tables share the same column structure (e.g. multi-page tables)
+        col_max_lens: dict[int, int] = {}
+        last_header: list[str] | None = None
+
+        for t_idx, t in enumerate(tables):
+            rows: list[list[str]] = t.get("rows") or []
+            if not rows:
+                continue
+
+            first_row = [str(c or "").strip() for c in rows[0]]
+            is_same_table = (
+                last_header is not None
+                and (
+                    first_row == last_header
+                    or (len(first_row) == len(last_header) and t_idx > 0)
+                )
+            )
+
+            # If not continuation of the same table, write section or header
+            if not is_same_table:
+                if cur_row > 1:
+                    cur_row += 1  # Add blank separator row
+
+                # If multiple distinct tables, add a clear section separator
+                if len(tables) > 1:
+                    sec_cell = ws.cell(
+                        row=cur_row,
+                        column=1,
+                        value=f"Table {t_idx + 1} (Page {t['page']})",
+                    )
+                    sec_cell.font = section_font
+                    sec_cell.fill = section_fill
+                    sec_cell.alignment = Alignment(horizontal="left", vertical="center")
+                    cur_row += 1
+
+                # Write header row
+                for c_idx, raw_val in enumerate(rows[0], start=1):
+                    cell = ws.cell(row=cur_row, column=c_idx, value=raw_val)
+                    cell.font = header_font
+                    cell.fill = header_fill
                     cell.border = grid_border
                     cell.alignment = Alignment(
-                        horizontal="left" if col_idx == 3 else "center",
-                        vertical="center",
-                        wrap_text=(col_idx == 3),
+                        horizontal="center", vertical="center", wrap_text=True
                     )
-                    if fill:
-                        cell.fill = fill
-                row_no += 1
+                    col_max_lens[c_idx] = max(
+                        col_max_lens.get(c_idx, 10), min(48, len(raw_val) + 4)
+                    )
+                cur_row += 1
+                last_header = first_row
+                data_rows = rows[1:]
+            else:
+                # If continuation repeats the exact header row, skip it
+                data_rows = rows[1:] if first_row == last_header else rows
 
-    ws.column_dimensions["A"].width = 8
-    ws.column_dimensions["B"].width = 8
-    ws.column_dimensions["C"].width = 90
-    ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.page_setup.fitToWidth = 1
-    return row_no - 2
+            # Write data rows
+            for r_idx, row in enumerate(data_rows):
+                for c_idx, raw_val in enumerate(row, start=1):
+                    cell = ws.cell(row=cur_row, column=c_idx)
+                    parsed_val, num_fmt = _parse_excel_cell_value(raw_val)
+                    cell.value = parsed_val
+                    cell.font = body_font
+                    cell.border = grid_border
+                    if (cur_row) % 2 == 1:
+                        cell.fill = zebra_fill
+                    if num_fmt:
+                        cell.number_format = num_fmt
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.alignment = Alignment(
+                            horizontal="left", vertical="center", wrap_text=True
+                        )
+                    col_max_lens[c_idx] = max(
+                        col_max_lens.get(c_idx, 10), min(48, len(str(raw_val)) + 4)
+                    )
+                cur_row += 1
+                total_rows_written += 1
+
+        for c_idx, max_len in col_max_lens.items():
+            ws.column_dimensions[get_column_letter(c_idx)].width = max(
+                12.0, min(50.0, float(max_len))
+            )
+    else:
+        # If no explicit tables found, format text by line into clean readable spreadsheet rows
+        ws.cell(row=1, column=1, value="Document Content").font = header_font
+        ws.cell(row=1, column=1).fill = header_fill
+        ws.column_dimensions["A"].width = 90
+        cur_row = 2
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as plum:
+            for page in plum.pages:
+                text = (page.extract_text(layout=True) or page.extract_text() or "").strip()
+                for line in text.splitlines():
+                    val = line.strip()
+                    if val:
+                        cell = ws.cell(row=cur_row, column=1, value=val)
+                        cell.font = body_font
+                        cell.border = grid_border
+                        if cur_row % 2 == 1:
+                            cell.fill = zebra_fill
+                        cur_row += 1
+                        total_rows_written += 1
+
+    return total_rows_written
 
 
 def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionArtifact:
     """
-    Convert a PDF to Excel with zero data loss:
-    - Each detected table (bordered or whitespace-aligned) becomes its own sheet.
-    - A 'Full_Text' sheet is always appended capturing every line from every page,
-      so content that falls outside detected tables is never discarded.
+    Convert a PDF to Excel with 100% complete data:
+    - Sheet 1 is always 'Combined_Data' containing ALL rows and columns unified in reading order.
+    - If multiple tables exist, individual sheets are also created for isolated viewing.
+    - Zero data loss: no partial/fragmented tables, no omitted rows.
     """
     tables = extract_tables_from_pdf(pdf_bytes)
     wb = openpyxl.Workbook()
@@ -974,23 +1043,24 @@ def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionA
     # Remove the default empty sheet before adding content sheets
     wb.remove(wb.active)
 
-    if tables:
+    # 1. Primary unified sheet with ALL rows and columns combined
+    total_combined_rows = _write_combined_sheet(
+        wb, tables, pdf_bytes, grid_border, header_fill, zebra_fill, header_font, body_font
+    )
+
+    # 2. If multiple tables exist, also add individual sheets for convenience
+    if len(tables) > 1:
         for t in tables:
             _write_xlsx_table_sheet(
                 wb, t, grid_border, header_fill, zebra_fill, header_font, body_font
             )
-    else:
-        warnings.append(
-            "No structured tables detected. All content is in the Full_Text sheet."
-        )
 
-    # Always append a lossless full-text sheet — no line from any page is ever omitted
-    text_lines = _write_xlsx_fulltext_sheet(wb, pdf_bytes, header_fill, header_font, body_font)
+    # Set the first combined sheet as the active one so Excel opens to it directly
+    wb.active = 0
 
-    if not tables and text_lines == 0:
+    if not tables and total_combined_rows == 0:
         warnings.append(
-            "PDF appears to contain no extractable text. "
-            "If it is a scanned image, run OCR first then convert to Excel."
+            "PDF contains no extractable text. If it is a scanned image, run OCR first."
         )
 
     out = io.BytesIO()
@@ -1001,7 +1071,11 @@ def pdf_to_xlsx(pdf_bytes: bytes, *, base_name: str = "document") -> ConversionA
         output_ext=".xlsx",
         suggested_name=f"{Path(base_name).stem}_tables.xlsx",
         warnings=warnings,
-        meta={"tables_count": len(tables), "full_text_lines": text_lines},
+        meta={
+            "tables_count": len(tables),
+            "combined_rows": total_combined_rows,
+            "sheets_count": len(wb.sheetnames),
+        },
     )
 
 

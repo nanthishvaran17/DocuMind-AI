@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, Terminal } from "lucide-react";
+import { PdfLogo } from "../FileFormatIcon";
 import {
   Badge,
   Bar,
@@ -151,7 +152,7 @@ export function DocuMindHeroDemo() {
                   {/* Top workspace bar */}
                   <div className="dmh-topbar">
                     <div className="dmh-doc">
-                      <FileText size={14} strokeWidth={1.8} className="dmh-doc__icon" />
+                      <PdfLogo className="h-4 w-4 shrink-0" />
                       <Text className="dmh-doc__name">semester_5_assignment.pdf</Text>
                     </div>
                     <button

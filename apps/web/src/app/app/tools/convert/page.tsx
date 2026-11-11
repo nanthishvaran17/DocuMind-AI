@@ -553,11 +553,11 @@ function ConvertStudioContent() {
                       {qualityReport.source_table_count} → {qualityReport.converted_table_count}
                     </span>
                   </div>
-                  {Boolean(completedJob?.result_meta?.full_text_lines) && (
+                  {Boolean(completedJob?.result_meta?.combined_rows) && (
                     <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)] col-span-2 flex items-center justify-between">
-                      <span className="text-[var(--dm-muted)]">Lossless full text backup</span>
-                      <span className="font-mono font-semibold text-emerald-400">
-                        {String(completedJob?.result_meta?.full_text_lines)} lines in Full_Text sheet
+                      <span className="text-[var(--dm-muted)]">Combined primary sheet</span>
+                      <span className="text-xs font-medium text-emerald-400">
+                        <span className="font-mono font-semibold">{String(completedJob?.result_meta?.combined_rows)}</span> rows unified in Sheet 1
                       </span>
                     </div>
                   )}
