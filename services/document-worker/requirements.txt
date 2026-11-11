@@ -1,0 +1,10 @@
+celery>=5.4.0
+redis>=5.2.0
+pydantic>=2.10.0
+pypdf>=5.1.0
+cryptography>=43.0.0
+pikepdf>=9.4.0
+Pillow>=11.0.0
+reportlab>=4.2.5
+# Optional AGPL engine (isolated strictly in document-worker; install in Docker or when enabled):
+# PyMuPDF>=1.25.0

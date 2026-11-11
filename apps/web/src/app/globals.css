@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "../../../../packages/ui/src/tokens.css";
+
+:root {
+  --font-inter: "Inter";
+  --font-heading: "Plus Jakarta Sans";
+  --font-mono: "JetBrains Mono";
+  --font-tamil: "Noto Sans Tamil";
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--dm-bg);
+    color: var(--dm-text);
+    font-family: var(--font-inter), var(--font-tamil), system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading), var(--font-inter), var(--font-tamil), system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+.dm-card {
+  background-color: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+}
+
+.dm-elevated {
+  background-color: var(--dm-elevated);
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+}
+
+.dm-primary-btn {
+  background-image: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  color: #FAFAFB;
+  border-radius: 8px;
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+
+.dm-primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  opacity: 0.96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

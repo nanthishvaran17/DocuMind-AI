@@ -1,0 +1,53 @@
+{
+  "brand": "DocuMind AI",
+  "tagline": "All-in-one PDF toolkit, AI workspace & student document suite.",
+  "nav": {
+    "features": "Features",
+    "tools": "PDF Tools",
+    "pricing": "Pricing",
+    "security": "Security",
+    "privacy": "Privacy",
+    "login": "Sign in",
+    "getStarted": "Open Workspace",
+    "guestMode": "Try without signup"
+  },
+  "hero": {
+    "badge": "Built for students, researchers & teams • English + தமிழ்",
+    "title": "Every PDF tool, cited AI & college report workflow in one calm workspace.",
+    "subtitle": "Upload a PDF, compress to exact KB for scholarship portals, resize passport photos, merge or split notes, and track every version without touching your original file.",
+    "ctaGuest": "Start in Guest Mode (No Signup)",
+    "ctaSignup": "Create Free Account",
+    "trustNote": "Guest files auto-delete in 1 hour. Zero training on your documents."
+  },
+  "app": {
+    "commandPlaceholder": "Tell me what you want... e.g. 'compress to 200 kb' or 'add page numbers'",
+    "runCommand": "Plan Action",
+    "approveAction": "Approve & Run",
+    "cancel": "Cancel",
+    "uploadDrop": "Drop PDF, DOCX, XLSX, PPTX, TXT or images here",
+    "uploadHint": "Max 50 MB • Malware-scanned • Original file stays untouched",
+    "privacyGuest": "Guest Mode: files auto-delete in 1 hour.",
+    "privacySignedIn": "Private workspace: only you can access your files.",
+    "deleteNow": "Delete now",
+    "recentDocs": "Your Documents",
+    "quickTools": "Quick Student Tools",
+    "searchPlaceholder": "Search your files...",
+    "trash": "Trash",
+    "library": "Library",
+    "tools": "Tools",
+    "settings": "Settings",
+    "offlineBanner": "You are offline. Viewing cached workspace; uploads and PDF tools require an internet connection.",
+    "emptyTitle": "No documents yet",
+    "emptySubtitle": "Drop a PDF above, open the interactive sample PDF, or launch a 3-click student tool."
+  },
+  "tools": {
+    "compress": "Compress to KB",
+    "compressDesc": "Hit under 100 KB, 200 KB, 1 MB, or 2 MB for portals.",
+    "photo": "Photo & Sign Resizer",
+    "photoDesc": "Exact pixels, DPI & KB for Passport, GATE, UPSC & PAN.",
+    "scan": "Camera Scan to PDF",
+    "scanDesc": "Turn phone photos of notes into clean multi-page PDFs.",
+    "merge": "Merge & Split",
+    "mergeDesc": "Combine handouts or split chapters non-destructively."
+  }
+}

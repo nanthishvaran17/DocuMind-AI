@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: pip install -r apps/api/requirements.txt
+      - name: Ruff lint
+        run: ruff check apps/api services/document-worker tests
+      - name: Mypy typecheck
+        run: mypy apps/api/app services/document-worker/worker
+      - name: Pytest with coverage
+        run: |
+          cd apps/api
+          pytest -v --cov=app --cov=../../services/document-worker/worker --cov-fail-under=80
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile || pnpm install
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build

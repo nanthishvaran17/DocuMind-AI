@@ -1,0 +1,25 @@
+FROM python:3.12-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH="/app/apps/api:/app/services/document-worker"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 fonts-noto-core && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 10001 documind
+WORKDIR /app
+
+COPY apps/api/requirements.txt /app/apps/api/requirements.txt
+COPY services/document-worker/requirements.txt /app/services/document-worker/requirements.txt
+RUN pip install -r /app/apps/api/requirements.txt -r /app/services/document-worker/requirements.txt
+
+COPY apps/api /app/apps/api
+COPY services/document-worker /app/services/document-worker
+
+WORKDIR /app/services/document-worker
+USER documind
+
+CMD ["celery", "-A", "worker.celery_app", "worker", "-Q", "default,convert", "--loglevel=info", "--concurrency=2"]

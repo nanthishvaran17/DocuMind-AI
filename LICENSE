@@ -1,0 +1,5 @@
+Apache License 2.0 (Project Code)
+
+Note on third-party worker dependencies:
+- PyMuPDF is licensed under AGPL-3.0 and is strictly isolated in services/document-worker (see docs/decisions/ADR-001-pymupdf-isolation.md).
+- Permissive fallbacks (pypdf: BSD-3-Clause, pikepdf: MPL-2.0, ReportLab: BSD, Pillow: HPND) are maintained for all core Phase 1 PDF operations.
