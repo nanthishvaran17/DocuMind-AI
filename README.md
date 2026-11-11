@@ -410,7 +410,7 @@ You can also use the [`Makefile`](Makefile) shortcuts (`make dev`, `make dev-api
 
 ## License
 
-- **Project Code:** [Apache License 2.0](LICENSE)
+- **Project Code:** Licensed under the **[Apache License 2.0](LICENSE)** (see [`NOTICE`](NOTICE) for attribution & third-party notices).
 - **Third-Party Worker Note:** Permissive engines (`pikepdf` MPL-2.0, `pypdf` BSD-3-Clause, `ReportLab` BSD, `Pillow` HPND) power all core operations when `PDF_ENGINE_ALLOW_PYMUPDF=false`. See [ADR-001](docs/decisions/ADR-001-pymupdf-isolation.md) for details.
 
 <div align="center">

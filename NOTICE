@@ -1,0 +1,23 @@
+DocuMind AI
+Copyright 2026 Nanthish (https://github.com/nanthishvaran17)
+
+This product includes software developed as part of the DocuMind AI project,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+================================================================================
+Third-Party Worker Dependencies & Licensing Boundary
+================================================================================
+
+1. PyMuPDF (AGPL-3.0) — Strictly Isolated
+   - PyMuPDF is licensed under the GNU Affero General Public License v3.0
+     (AGPL-3.0) and is strictly isolated inside `services/document-worker`.
+   - `apps/api` and `apps/web` do NOT import or depend on PyMuPDF.
+   - See `docs/decisions/ADR-001-pymupdf-isolation.md` for full architectural
+     and commercial distribution guidance.
+   - To run purely on permissive dependencies, set `PDF_ENGINE_ALLOW_PYMUPDF=false`.
+
+2. Permissive PDF & Image Fallbacks (Core Phase 1 Operations)
+   - pypdf       : BSD-3-Clause
+   - pikepdf     : MPL-2.0
+   - ReportLab   : BSD License
+   - Pillow      : HPND (Historical Permission Notice and Disclaimer)
