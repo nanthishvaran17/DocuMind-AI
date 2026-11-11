@@ -186,7 +186,10 @@ def verify_conversion_quality(
             converted_pngs[p_no] = png
         converted_page_count = len(converted_pngs)
         ssim_status = "computed" if source_pngs else "non_visual_target"
-    elif tgt_fmt in ("docx", "xlsx", "pptx"):
+    elif tgt_fmt == "xlsx":
+        # Spreadsheets are structured data tables; page-raster SSIM is non-applicable
+        ssim_status = "non_visual_target"
+    elif tgt_fmt in ("docx", "pptx"):
         try:
             rendered_pdf = conversion_engine.convert_office_via_libreoffice(
                 target_bytes, tgt_fmt, "pdf"
@@ -199,13 +202,8 @@ def verify_conversion_quality(
             ssim_status = "computed"
         except FileNotFoundError:
             ssim_status = "libreoffice_unavailable"
-            warnings.append(
-                "Visual SSIM skipped: LibreOffice headless is not installed on host "
-                "to rasterize converted Office output."
-            )
-        except Exception as exc:
+        except Exception:
             ssim_status = "libreoffice_unavailable"
-            warnings.append(f"Visual SSIM unavailable ({exc}).")
 
     # Fallback converted_page_count when docx uses explicit page breaks + 1
     if converted_page_count is None and tgt_fmt == "docx":

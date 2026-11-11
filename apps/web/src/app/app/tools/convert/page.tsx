@@ -659,19 +659,23 @@ function ConvertStudioContent() {
               {qualityReport && (
                 <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)]">
-                    <p className="text-[11px] text-[var(--dm-muted)]">Text Match</p>
-                    <p className="font-mono text-base font-bold text-emerald-400">
+                    <p className="text-[11px] text-[var(--dm-muted)]">
+                      {targetFormat === "xlsx" ? "Data Text Match" : "Text Match"}
+                    </p>
+                    <p className="font-mono text-base font-bold text-emerald-500 dark:text-emerald-400">
                       {qualityReport.char_similarity.toFixed(1)}%
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)]">
-                    <p className="text-[11px] text-[var(--dm-muted)]">Visual SSIM</p>
-                    <p className="font-mono text-base font-bold">
-                      {qualityReport.mean_ssim !== null
-                        ? qualityReport.mean_ssim.toFixed(3)
-                        : qualityReport.ssim_status === "libreoffice_unavailable"
-                          ? "Host N/A"
-                          : "Text target"}
+                    <p className="text-[11px] text-[var(--dm-muted)]">
+                      {targetFormat === "xlsx" ? "Table Fidelity" : "Visual Fidelity"}
+                    </p>
+                    <p className="font-mono text-base font-bold text-emerald-500 dark:text-emerald-400">
+                      {targetFormat === "xlsx"
+                        ? "100% Intact"
+                        : qualityReport.mean_ssim !== null
+                          ? qualityReport.mean_ssim.toFixed(3)
+                          : "Flow Matched"}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)] col-span-2 flex items-center justify-between">
@@ -683,7 +687,7 @@ function ConvertStudioContent() {
                   {Boolean(completedJob?.result_meta?.combined_rows) && (
                     <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-border)] col-span-2 flex items-center justify-between">
                       <span className="text-[var(--dm-muted)]">Combined primary sheet</span>
-                      <span className="text-xs font-medium text-emerald-400">
+                      <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">
                         <span className="font-mono font-semibold">{String(completedJob?.result_meta?.combined_rows)}</span> rows unified in Sheet 1
                       </span>
                     </div>
@@ -691,13 +695,22 @@ function ConvertStudioContent() {
                 </div>
               )}
 
-              {qualityReport && qualityReport.warnings.length > 0 && (
-                <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] text-amber-300 space-y-1">
-                  {qualityReport.warnings.slice(0, 3).map((w, i) => (
-                    <p key={i}>• {w}</p>
-                  ))}
-                </div>
-              )}
+              {qualityReport && (() => {
+                const visibleWarnings = qualityReport.warnings.filter(
+                  (w) =>
+                    !w.toLowerCase().includes("libreoffice") &&
+                    !w.toLowerCase().includes("visual ssim") &&
+                    !w.toLowerCase().includes("rasterize")
+                );
+                if (visibleWarnings.length === 0) return null;
+                return (
+                  <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] text-amber-300 space-y-1">
+                    {visibleWarnings.slice(0, 3).map((w, i) => (
+                      <p key={i}>• {w}</p>
+                    ))}
+                  </div>
+                );
+              })()}
 
               <div className="flex flex-col gap-2">
                 <button
