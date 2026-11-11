@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, GraduationCap, Loader2, ShieldCheck, UserPlus } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Loader2, UserPlus } from "lucide-react";
 import type { AuthSession } from "@documind/types";
 import { apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -109,12 +109,23 @@ export default function RegisterPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium">Password</label>
-              <input
-                type="password"
-                {...register("password")}
-                placeholder="At least 8 characters"
-                className="dm-input w-full px-3.5 py-2.5 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  autoComplete="new-password"
+                  placeholder="At least 8 chars with uppercase & number"
+                  className="dm-input w-full pl-3.5 pr-10 py-2.5 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--dm-muted)] hover:text-[var(--dm-text)] transition-colors p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
             </div>
 
