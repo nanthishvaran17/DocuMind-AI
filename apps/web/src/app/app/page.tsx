@@ -613,6 +613,7 @@ export default function DashboardPage() {
               </button>
               <Link
                 href="/app/tools/scan"
+                prefetch={true}
                 className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 dark:border-cyan-500/30 dark:bg-cyan-500/15 dark:text-cyan-200 inline-flex items-center gap-1.5 transition-colors"
               >
                 <Camera className="h-3.5 w-3.5" />
@@ -788,6 +789,7 @@ export default function DashboardPage() {
                 <Link
                   key={tool.href}
                   href={tool.href}
+                  prefetch={true}
                   className="group dm-card dm-card-interactive p-4 flex flex-col justify-between gap-3.5 hover:bg-gradient-to-b hover:from-white hover:to-indigo-50/40 dark:hover:to-indigo-950/20"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -1050,6 +1052,7 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-1.5 min-w-0">
                               <Link
                                 href={`/app/workspace/${doc.id}`}
+                                prefetch={true}
                                 className="text-sm font-medium hover:text-indigo-500 dark:hover:text-indigo-300 truncate block"
                               >
                                 {doc.name}
@@ -1136,6 +1139,7 @@ export default function DashboardPage() {
                         {doc.mime_type === "application/pdf" && (
                           <Link
                             href="/app/tools/compress"
+                            prefetch={true}
                             className="px-2.5 py-1 rounded-lg border border-[var(--dm-border-strong)] bg-[var(--dm-surface)] hover:border-indigo-500 text-[var(--dm-muted)] hover:text-[var(--dm-text)] font-semibold transition-colors"
                           >
                             Compress

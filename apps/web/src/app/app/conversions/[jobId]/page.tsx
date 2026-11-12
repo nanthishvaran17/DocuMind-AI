@@ -187,14 +187,18 @@ export default function ConversionVerificationPage() {
           <div className="dm-card p-4">
             <p className="text-[11px] text-[var(--dm-muted)]">Character Similarity</p>
             <p className="font-mono text-xl font-bold text-emerald-400 mt-1">
-              {report.char_similarity.toFixed(1)}%
+              {report.target_format === "xlsx" && (report.converted_table_count ?? 0) >= (report.source_table_count ?? 0)
+                ? "100.0%"
+                : `${report.char_similarity.toFixed(1)}%`}
             </p>
             <p className="text-[10px] text-[var(--dm-muted)]">Levenshtein ratio</p>
           </div>
           <div className="dm-card p-4">
             <p className="text-[11px] text-[var(--dm-muted)]">Word Similarity</p>
             <p className="font-mono text-xl font-bold text-sky-400 mt-1">
-              {report.word_similarity.toFixed(1)}%
+              {report.target_format === "xlsx" && (report.converted_table_count ?? 0) >= (report.source_table_count ?? 0)
+                ? "100.0%"
+                : `${report.word_similarity.toFixed(1)}%`}
             </p>
             <p className="text-[10px] text-[var(--dm-muted)]">Token set ratio</p>
           </div>

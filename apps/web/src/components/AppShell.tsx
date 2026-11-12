@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {!isSidebarCollapsed ? (
             <>
-              <Link href="/" className="flex items-center gap-2.5 group min-w-0">
+              <Link href="/" prefetch={true} className="flex items-center gap-2.5 group min-w-0">
                 <span className="relative h-8 w-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-xs shrink-0">
                   <FileText className="h-4 w-4" />
                 </span>
@@ -239,6 +239,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="w-full flex items-center justify-between">
               <Link
                 href="/"
+                prefetch={true}
                 className="h-8 w-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 shadow-xs shrink-0 mx-auto"
                 title={t.brand}
               >
@@ -280,6 +281,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={true}
                       title={`${item.label}${item.badge ? ` (${item.badge})` : ""}`}
                       className={`relative flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[13px] transition-colors ${
                         active
@@ -299,6 +301,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={`relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors ${
                       active
                         ? "text-white font-semibold"
@@ -600,6 +603,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
                 active ? "text-indigo-500 dark:text-indigo-400 font-medium" : "text-[var(--dm-muted)]"
               }`}
